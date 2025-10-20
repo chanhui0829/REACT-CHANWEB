@@ -1,26 +1,60 @@
 import { AppDraftsDialog, AppSidebar } from "../components/common";
-import { SkeletonHotTopic } from "../components/skeleton";
-import { Button } from "../components/ui";
+
 import { useNavigate, useSearchParams } from "react-router";
-import { useAuthStore } from "@/stores";
+import { useAuthStore, usePaginationStore } from "@/stores";
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";
-import { CircleSmall, NotebookPen, PencilLine } from "lucide-react";
+import { CircleSmall, NotebookPen, PencilLine, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { TOPIC_STATUS, type Topic } from "@/types/topic.type";
-import { NewTopicCard } from "@/components/topics";
+import { TopicCard } from "@/components/topics";
+import {
+  Button,
+  Input,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "../components/ui";
 
 function App() {
-  const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
 
+  const user = useAuthStore((state) => state.user);
+  const { currentPage, setPage } = usePaginationStore();
+
+  const [searchInput, setSearchInput] = useState(""); // 입력 중 값
+  const [searchQuery, setSearchQuery] = useState(""); // 실제 검색 실행 값
   const [searchParams, setSearchParams] = useSearchParams();
   const category = searchParams.get("category") || "";
 
   const [topics, setTopics] = useState<Topic[]>([]);
 
+  //검색어가 있을 때 필터링
+  const filteredTopics = topics.filter(
+    (topic) =>
+      topic.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      topic.content?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  //페이지네이션
+  const ITEMS_PER_PAGE = 6;
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedTopics = filteredTopics.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
+  const totalPages = Math.ceil(filteredTopics.length / ITEMS_PER_PAGE);
+
+  //카테고리 변경
   const handleCategoryChange = (value: string) => {
     if (value === category) return; // 선택된 항목 재선택시 무시.
+
+    setSearchQuery(""); // 검색 결과 상태 초기화
+    setSearchInput(""); // 검색창 비우기
 
     if (value === "") setSearchParams({});
     else setSearchParams({ category: value });
@@ -32,7 +66,8 @@ function App() {
       const query = supabase
         .from("topic")
         .select("*")
-        .eq("status", TOPIC_STATUS.PUBLISH);
+        .eq("status", TOPIC_STATUS.PUBLISH)
+        .order("created_at", { ascending: false });
 
       if (category && category.trim() !== "") query.eq("category", category);
 
@@ -84,6 +119,20 @@ function App() {
     }
   };
 
+  // ✅ 검색 실행 함수
+  const handleSearch = () => {
+    fetchTopics();
+    setSearchQuery(searchInput.trim());
+    setPage(1); // 페이지 첫 페이지로 이동
+  };
+
+  // ✅ 엔터키 입력 시 검색
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
   useEffect(() => {
     fetchTopics();
   }, [category]);
@@ -114,74 +163,118 @@ function App() {
         </AppDraftsDialog>
       </div>
       {/* 카테고리 사이드바 */}
-      <div className="hidden lg:block lg:min-w-60 lg:w-60 lg:h-full">
+      <div className="hidden lg:block lg:min-w-60 lg:w-60 lg:h-full ">
         <AppSidebar category={category} setCategory={handleCategoryChange} />
       </div>
       {/* 토픽 콘텐츠 */}
       <section className="w-full lg:w-[calc(100%-264px)] flex-1 flex flex-col gap-12 mr-2">
-        {/* 핫토픽 */}
-        <div className="w-full flex flex-col gap-6">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <img
-                src="/assets/gifs/gif-001.gif"
-                alt="@IMG"
-                className="w-6 h-6"
-              />
-              <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-                HOT 토픽
-              </h4>
-            </div>
-            <p className="md:text-base text-muted-foreground">
-              지금 가장 주목받는 주제들을 살펴보고, 다양한 관점의 인사이트를
-              얻어보세요.
-            </p>
+        <div className="flex flex-col gap-1 justify-center items-center">
+          <div className="flex items-center gap-2">
+            <img
+              src="/assets/gifs/gif-002.gif"
+              alt="@IMG2"
+              className="w-8 h-8"
+            />
+            <h1 className="text-3xl font-semibold tracking-tight scroll-m-20 mt-1">
+              토픽 인사이트
+            </h1>
           </div>
-          <div className="w-full flex items-center gap-6 overflow-auto">
-            <SkeletonHotTopic />
-            <SkeletonHotTopic />
-            <SkeletonHotTopic />
-            <SkeletonHotTopic />
+          <p className="sm:text-base md:text-lg text-muted-foreground">
+            지식과 인사이트를 모아, 토픽으로 깊이 있게 나누세요!
+          </p>
+        </div>
+        {/* 검색창 */}
+        <div className="flex justify-center w-full ">
+          <div className="relative w-full max-w-2xl">
+            <div
+              className="
+            flex items-center
+            bg-white dark:bg-zinc-900
+            rounded-full shadow-md border border-zinc-200 dark:border-zinc-700
+            hover:shadow-lg transition-all duration-300
+            focus-within:ring-2 focus-within:ring-orange-500
+            overflow-hidden
+          "
+            >
+              <Input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="토픽 제목 또는 내용을 입력하세요."
+                className="
+              flex-1 h-12 border-none bg-transparent text-lg px-6 py-3
+              text-zinc-900 dark:text-zinc-100
+              placeholder:text-zinc-400 dark:placeholder:text-zinc-500
+              focus-visible:ring-0 focus-visible:outline-none
+            "
+              />
+              <Button
+                onClick={handleSearch}
+                className="
+                h-12 rounded-none rounded-r-full px-10 py-3
+              bg-orange-400 hover:bg-orange-500
+              dark:bg-orange-500 dark:hover:bg-orange-400
+              text-white font-semibold flex items-center gap-1
+              transition-all duration-300
+            "
+              >
+                <Search size={18} />
+                <p className="pr-2">검색</p>
+              </Button>
+            </div>
           </div>
         </div>
-        {/* New 토픽 */}
+
+        {/* 토픽 */}
         <div className="w-full flex flex-col gap-6">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <img
-                src="/assets/gifs/gif-002.gif"
-                alt="@IMG2"
-                className="w-6 h-6"
-              />
-              <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-                NEW 토픽
-              </h4>
-            </div>
-            <p className="md:text-base text-muted-foreground">
-              새로운 시선으로, 새로운 이야기를 시작하세요. 지금 바로 당신만의
-              토픽을 작성해보세요.
-            </p>
-          </div>
-          {topics.length > 0 ? (
-            <div className="flex flex-col min-h-120 md:grid md:grid-cols-2 gap-6">
-              {topics
-                .sort(
-                  (a, b) =>
-                    new Date(b.created_at).getTime() -
-                    new Date(a.created_at).getTime()
-                )
-                .map((topic: Topic) => {
-                  return <NewTopicCard props={topic} />;
-                })}
+          {paginatedTopics.length > 0 ? (
+            <div className="grid md:grid-cols-2 gap-6">
+              {paginatedTopics.map((topic) => (
+                <TopicCard key={topic.id} props={topic} />
+              ))}
             </div>
           ) : (
-            <div className="w-full flex min-h-120 items-center justify-center">
-              <p className="text-muted-foreground">
-                조회 가능한 토픽이 없습니다.
-              </p>
-            </div>
+            <p className="text-center text-muted-foreground mt-10">
+              {searchQuery
+                ? `"${searchQuery}"에 대한 검색 결과가 없습니다.`
+                : "조회 가능한 토픽이 없습니다."}
+            </p>
           )}
         </div>
+
+        {/* 페이지네이션 구현 */}
+        {totalPages > 1 && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={() => setPage(Math.max(1, currentPage - 1))}
+                />
+              </PaginationItem>
+
+              {[...Array(totalPages)].map((_, i) => (
+                <PaginationItem key={i}>
+                  <PaginationLink
+                    href="#"
+                    isActive={currentPage === i + 1}
+                    onClick={() => setPage(i + 1)}
+                  >
+                    {i + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </section>
     </main>
   );
