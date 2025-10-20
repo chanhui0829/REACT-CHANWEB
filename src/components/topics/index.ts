@@ -1,1 +1,2 @@
-export { NewTopicCard } from "./new-topic";
+export { TopicCard } from "./TopicCard";
+export { NewTopicCard } from "./NewTopicCard";

@@ -149,6 +149,16 @@
   }
 }
 
+
 .bn-editor {
-  background-color: transparent !important ;
+  color: white !important; /* 기본 텍스트 색상 */
+  background-color: transparent !important; /* 배경 그대로 */
+}
+
+.bn-editor *::selection {
+  background-color: rgba(52, 211, 153, 0.4); /* 선택 영역 강조색 (emerald tone) */
+}
+
+.bn-placeholder {
+  color: #71717a !important; /* placeholder 색상 (text-zinc-500 비슷하게) */
 }

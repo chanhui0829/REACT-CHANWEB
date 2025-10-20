@@ -10,6 +10,7 @@ export default function RootLayout() {
       <div className="container">
         <Outlet />
       </div>
+
       <AppFooter />
     </div>
   );

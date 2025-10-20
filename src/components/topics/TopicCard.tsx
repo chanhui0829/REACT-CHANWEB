@@ -59,6 +59,7 @@ async function findUserById(id: string) {
       return;
     }
 
+    //닉네임 받기 구글 시 분기처리 고려
     if (user && user.length > 0) {
       return user[0].email.split("@")[0] + "님";
     } else {
@@ -70,7 +71,7 @@ async function findUserById(id: string) {
   }
 }
 
-export function NewTopicCard({ props }: Props) {
+export function TopicCard({ props }: Props) {
   const navigate = useNavigate();
 
   const [nickname, setNickname] = useState<string>("");

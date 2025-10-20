@@ -41,6 +41,10 @@ export default function CreateTopic() {
   const [thumbnail, setThumbnail] = useState<File | string | null>(null);
 
   useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "instant",
+    });
     fetchTopic();
   }, []);
 

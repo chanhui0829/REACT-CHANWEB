@@ -1,9 +1,10 @@
+import { NavLink } from "react-router";
 import { Button, Separator } from "../ui";
 
 function AppFooter() {
   return (
-    <footer className="w-full flex flex-col items-center justify-center bg-[#121212]">
-      <div className="w-full max-w-[1328px] flex flex-col gap-6 p-6 pb-18">
+    <footer className=" w-full flex flex-col items-center justify-center bg-[#121212]">
+      <div className=" w-full max-w-[1328px] flex flex-col gap-6 p-6 pb-18">
         <div className="w-full flex flex-col items-start justify-between gap-6 md:flex-row md:gap-0">
           <div className="flex flex-col items-start gap-4">
             <div className="flex flex-col items-start">
@@ -22,13 +23,15 @@ function AppFooter() {
                   className="w-8 h-8 p-1"
                 />
               </Button>
-              <Button variant={"outline"} size={"icon"} className="border-0">
-                <img
-                  src="/assets/icons/icon-002.png"
-                  alt="@THREAD"
-                  className="w-8 h-8"
-                />
-              </Button>
+              <NavLink to="https://github.com/chanhui0829" target="\_blank">
+                <Button variant={"outline"} size={"icon"} className="border-0">
+                  <img
+                    src="/assets/icons/icon-002.png"
+                    alt="@THREAD"
+                    className="w-8 h-8"
+                  />
+                </Button>
+              </NavLink>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -39,10 +42,6 @@ function AppFooter() {
             <p className="cursor-pointer transition-all duration-300 hover:font-medium">
               개인정보처리방침
             </p>
-            <Separator orientation="vertical" className="!h-[14px]" />
-            <p className="cursor-pointer transition-all duration-300 hover:font-medium">
-              클래스 론칭 문의
-            </p>
           </div>
         </div>
         <Separator />
@@ -52,19 +51,18 @@ function AppFooter() {
               <p className="h-10 text-base font-semibold">고객센터</p>
               <div className="flex flex-col items-start gap-1">
                 <p>평일 오전 9시 ~ 오후 6시</p>
-                <p>문의:cskgml762@naver.com</p>
+                <p>이메일:cskgml762@naver.com</p>
               </div>
             </div>
-            <p>@CCC Team all rights reserved</p>
+            <p>@CHANWEB Team all rights reserved</p>
           </div>
           <div className="flex flex-col mr-[66px]">
             <p className="h-10 text-base font-semibold">사업자 정보</p>
             <div className="flex flex-col items-start gap-1">
-              <p>대표이사:윤찬희</p>
+              <p>제작자:윤찬희</p>
               <p>사업자 번호:012-34-56789</p>
-              <p>통신판매신고번호:1997-대한민국-2025</p>
               <p>주소:서울특별시 강남구 강남대로 12길</p>
-              <p>대표번호:010-1997-0829</p>
+              <p>대표번호:010-1234-1234</p>
             </div>
           </div>
         </div>
