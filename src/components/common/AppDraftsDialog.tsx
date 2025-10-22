@@ -21,6 +21,8 @@ import dayjs from "dayjs";
 import { TOPIC_STATUS, type Topic } from "@/types/topic.type";
 import { useNavigate } from "react-router";
 
+import { AppDeleteDialog } from "./AppDeleteDialog";
+
 interface Props {
   children: React.ReactNode;
 }
@@ -51,6 +53,18 @@ export function AppDraftsDialog({ children }: Props) {
     }
   };
 
+  // ✅ 특정 draft 삭제
+  const handleDelete = async (id: number) => {
+    const { error } = await supabase.from("topic").delete().eq("id", id);
+    if (error) {
+      toast.error("삭제 중 오류가 발생했습니다.");
+      console.error(error);
+    } else {
+      setDrafts((prev) => prev.filter((draft) => draft.id !== id)); // UI에서 제거
+      return;
+    }
+  };
+
   useEffect(() => {
     if (user) fetchDrafts();
   }, []);
@@ -74,38 +88,52 @@ export function AppDraftsDialog({ children }: Props) {
             <p>건</p>
           </div>
           <Separator />
-          {drafts.length > 0 ? (
-            <div className="min-h-60 h-60 flex flex-col items-center justify-start gap-3 overflow-y-scroll">
-              {drafts.map((draft: Topic, index: number) => {
-                return (
+          <div className="w-full h-80 flex flex-col items-center">
+            {drafts.length > 0 ? (
+              <div className="w-full max-w-2xl mx-auto space-y-2 overflow-scroll mt-3">
+                {drafts.map((draft, index) => (
                   <div
-                    className="w-full flex items-center justify-between py-2 px-4 gap-3 rounded-md bg-card/50 cursor-pointer"
-                    onClick={() => navigate(`/topics/${draft.id}/create`)}
+                    key={draft.id}
+                    className="w-full flex items-center py-2 px-4 gap-3 rounded-md bg-card/50 cursor-pointer hover:bg-card/70 transition "
                   >
-                    <div className="flex items-start gap-2">
-                      <Badge className="w-5 h-5 mt-[3px] rounded-sm aspect-square text-foreground bg-[#E26F24] hover:bg-[#E26F24]">
-                        {index + 1}
-                      </Badge>
-                      <div className="flex flex-col">
-                        <p className="line-clamp-1">{draft.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          작성일:{" "}
-                          {dayjs(draft.created_at).format("YYYY. MM. DD")}
-                        </p>
+                    <div
+                      className="flex justify-between w-full items-start "
+                      onClick={() => navigate(`/topics/${draft.id}/create`)}
+                    >
+                      <div className="flex w-full items-start gap-2 overflow-hidden">
+                        <Badge className="w-5 h-5 mt-2 mr-3 rounded-sm aspect-square text-foreground bg-[#E26F24] hover:bg-[#E26F24]">
+                          {index + 1}
+                        </Badge>
+                        <div className="flex flex-col w-[calc(100%-2rem)]">
+                          <p className="line-clamp-1 break-all pr-4">
+                            {draft.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            작성일:{" "}
+                            {dayjs(draft.created_at).format("YYYY. MM. DD")}
+                          </p>
+                        </div>
                       </div>
+                      <Badge className="mt-2" variant="outline">
+                        작성중
+                      </Badge>
                     </div>
-                    <Badge variant={"outline"}>작성중</Badge>
+                    <AppDeleteDialog
+                      onConfirm={() => handleDelete(draft.id)}
+                      title="정말 해당 작성중인 토픽을 삭제하시겠습니까??"
+                      description="삭제하시면 해당 토픽의 모든 내용이 영구적으로 삭제되어 복구할 수 없습니다."
+                    />
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="min-h-60 flex items-center justify-center">
-              <p className="text-muted-foreground/50">
-                조회 가능한 정보가 없습니다.
-              </p>
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="min-h-60 flex items-center justify-center">
+                <p className="text-muted-foreground/50">
+                  조회 가능한 정보가 없습니다.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <DialogClose asChild>

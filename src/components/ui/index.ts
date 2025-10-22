@@ -82,3 +82,5 @@ export {
   PaginationNext,
   PaginationEllipsis,
 } from "./pagination";
+
+export { Textarea } from "./textarea";

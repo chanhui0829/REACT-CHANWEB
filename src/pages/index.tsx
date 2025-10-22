@@ -32,6 +32,52 @@ function App() {
 
   const [topics, setTopics] = useState<Topic[]>([]);
 
+  // ⭐️ [수정 1] 임시 저장 토픽 존재 여부 상태
+  const [hasDrafts, setHasDrafts] = useState<boolean>(false);
+
+  // ⭐️ [수정 2] 임시 저장 토픽 존재 여부를 가져오는 함수
+  const checkDraftExistence = async (userId: string) => {
+    if (!userId) {
+      setHasDrafts(false);
+      return;
+    }
+
+    // 데이터 하나만 확인할 때는 count를 쓰지 않고 limit(1)로 효율을 높일 수 있습니다.
+    const { data, error } = await supabase
+      .from("topic")
+      .select("id")
+      .eq("author", userId)
+      .eq("status", TOPIC_STATUS.TEMP) // 임시 저장 상태(발행 안 됨)
+      .limit(1);
+
+    if (error) {
+      console.error("Draft Check Error:", error);
+      setHasDrafts(false);
+      return;
+    }
+
+    // ⭐️ 데이터가 1개 이상 있으면 true
+    setHasDrafts(data?.length > 0);
+  };
+
+  // ⭐️ [수정 3] 사용자 ID가 로드될 때마다 존재 여부 확인
+  useEffect(() => {
+    if (user?.id) {
+      checkDraftExistence(user.id);
+    } else {
+      setHasDrafts(false);
+    }
+
+    // 1분마다 새로고침하여 상태 업데이트
+    const intervalId = setInterval(() => {
+      if (user?.id) {
+        checkDraftExistence(user.id);
+      }
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [user?.id]);
+
   //검색어가 있을 때 필터링
   const filteredTopics = topics.filter(
     (topic) =>
@@ -51,8 +97,6 @@ function App() {
 
   //카테고리 변경
   const handleCategoryChange = (value: string) => {
-    if (value === category) return; // 선택된 항목 재선택시 무시.
-
     setSearchQuery(""); // 검색 결과 상태 초기화
     setSearchInput(""); // 검색창 비우기
 
@@ -121,6 +165,10 @@ function App() {
 
   // ✅ 검색 실행 함수
   const handleSearch = () => {
+    if (searchInput.trim().length < 2) {
+      toast.error("검색어를 두 글자 이상 입력해주세요. 😊");
+      return;
+    }
     fetchTopics();
     setSearchQuery(searchInput.trim());
     setPage(1); // 페이지 첫 페이지로 이동
@@ -129,6 +177,7 @@ function App() {
   // ✅ 엔터키 입력 시 검색
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       handleSearch();
     }
   };
@@ -149,16 +198,22 @@ function App() {
           나만의 토픽 작성
         </Button>
         <AppDraftsDialog>
-          <div className="relative transition-all duration-300 hover:scale-110">
-            <Button variant={"outline"} className="w-10 h-10 rounded-full ">
-              <NotebookPen />
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full w-10 h-10 p-0 shadow-lg border-2 border-zinc-700 bg-zinc-800 hover:bg-zinc-700"
+            >
+              <NotebookPen className="w-6 h-6" />
             </Button>
-
-            <CircleSmall
-              className="absolute top-0 right-0 text-red-500"
-              fill="#EF4444"
-              size={14}
-            />
+            {/* ⭐️ [수정 5] hasDrafts가 true일 때만 빨간 동그라미 뱃지 표시 */}
+            {hasDrafts && (
+              <CircleSmall
+                className="absolute top-0 right-0 text-red-500"
+                fill="#EF4444"
+                size={14}
+              />
+            )}
           </div>
         </AppDraftsDialog>
       </div>
@@ -192,7 +247,7 @@ function App() {
             bg-white dark:bg-zinc-900
             rounded-full shadow-md border border-zinc-200 dark:border-zinc-700
             hover:shadow-lg transition-all duration-300
-            focus-within:ring-2 focus-within:ring-orange-500
+            focus-within:ring-2 focus-within:ring-emerald-500
             overflow-hidden
           "
             >
@@ -213,8 +268,8 @@ function App() {
                 onClick={handleSearch}
                 className="
                 h-12 rounded-none rounded-r-full px-10 py-3
-              bg-orange-400 hover:bg-orange-500
-              dark:bg-orange-500 dark:hover:bg-orange-400
+              bg-emerald-400 hover:bg-emerald-500
+              dark:bg-emerald-500 dark:hover:bg-oremeraldange-400
               text-white font-semibold flex items-center gap-1
               transition-all duration-300
             "

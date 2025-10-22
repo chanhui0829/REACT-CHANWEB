@@ -1,27 +1,27 @@
-import { AppEditor } from "@/components/common";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-  Button,
-  Separator,
-} from "@/components/ui";
+import { AppDeleteDialog, AppEditor } from "@/components/common";
+import { Button, Separator } from "@/components/ui";
 import supabase from "@/lib/supabase";
 import { useAuthStore } from "@/stores";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+import CommentBox from "./comment";
 
 export default function TopicDetail() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const params = useParams();
+  const rawId = params.id; // string | undefined
+
+  // id가 없거나 숫자로 변환 불가하면 처리
+  const topicId = rawId ? Number(rawId) : NaN;
+  useEffect(() => {
+    if (!rawId) {
+      // 필요한 경우 redirect 또는 에러 처리
+      console.error("Invalid topic id");
+    }
+  }, [rawId]);
+
   const user = useAuthStore((state) => state.user);
 
   const [author, setAuthor] = useState<string>("");
@@ -35,7 +35,7 @@ export default function TopicDetail() {
       const { data: topic, error } = await supabase
         .from("topic")
         .select("*")
-        .eq("id", id);
+        .eq("id", topicId);
 
       if (error) {
         toast.error(error.message);
@@ -58,7 +58,7 @@ export default function TopicDetail() {
 
   const handleDelete = async () => {
     try {
-      const { error } = await supabase.from("topic").delete().eq("id", id);
+      const { error } = await supabase.from("topic").delete().eq("id", topicId);
 
       if (error) {
         toast.error(error.message);
@@ -74,7 +74,7 @@ export default function TopicDetail() {
 
   useEffect(() => {
     fetchTopic();
-  }, [id]);
+  }, [topicId]);
 
   return (
     <main className="w-full h-full min-h-[720px] flex flex-col">
@@ -83,43 +83,17 @@ export default function TopicDetail() {
         style={{ backgroundImage: `url(${thumbnail})` }}
       >
         {/* 뒤로 가기 */}
-        <div className="absolute top-6 left-6 z-10 flex items-center gap-2 mt-2">
+        <div className="absolute top-6 left-6 z-10 flex items-center gap-2 mt-5">
           <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft />
           </Button>
           {/* 토픽을 작성한 사람의 user_id와 로그인한 사람의 user_id가 같은 경우에만 보이도록 설정. */}
           {author === user?.id && (
-            <AlertDialog>
-              <AlertDialogTrigger>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="!bg-red-700/50"
-                >
-                  <Trash2 />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    정말 해당 토픽을 삭제하시겠습니까?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    삭제하시면 해당 토픽의 모든 내용이 영구적으로 삭제되어
-                    복구할 수 없습니다.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>닫기</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-red-800/50 text-foreground hover:bg-red-700/50"
-                    onClick={handleDelete}
-                  >
-                    삭제
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <AppDeleteDialog
+              onConfirm={() => handleDelete()}
+              title="정말 해당 토픽을 삭제하시겠습니까??"
+              description="삭제하시면 해당 토픽의 모든 내용이 영구적으로 삭제되어 복구할 수 없습니다."
+            />
           )}
         </div>
         {/* 좌,우,하단 그라데이션 */}
@@ -136,8 +110,46 @@ export default function TopicDetail() {
         <span>2025.10.06</span>
       </section>
       {/* 에디터 내용을 블러와 렌더링 */}
-      <div className="w-full py-6">
+      <div className="w-full py-10">
         {content && <AppEditor props={JSON.parse(content)} readonly />}
+      </div>
+      <Separator />
+      <div className="relative via-zinc-900 to-zinc-950">
+        {/* 양옆 어두운 그라데이션 (시각적으로 좁아 보이게) */}
+        <div className="absolute inset-y-0 left-0 w-[20vw] pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-[20vw] pointer-events-none" />
+
+        {/* ⭐️ 수정된 부분: items-start 추가 */}
+        <div className=" z-10 flex justify-center gap-3 px-0 py-8 items-start">
+          {/* 댓글 본문 영역 */}
+          <section className=" flex-1 max-w-4xl">
+            <CommentBox topicId={topicId} />
+          </section>
+
+          {/* 오른쪽 사이드 영역 */}
+          <aside className=" hidden lg:block w-[320px] mr-20 space-y-6 sticky top-20">
+            {/* 인기 토픽 */}
+            <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
+              <h3 className="text-white font-semibold text-lg mb-3 flex items-center gap-2">
+                🔥 인기 토픽
+              </h3>
+              <ul className="space-y-2 text-zinc-400 text-sm">
+                <li className="hover:text-emerald-400 cursor-pointer transition-colors">
+                  React vs Vue 논쟁
+                </li>
+                <li className="hover:text-emerald-400 cursor-pointer transition-colors">
+                  Supabase 인증 완전정복
+                </li>
+                <li className="hover:text-emerald-400 cursor-pointer transition-colors">
+                  Tailwind로 포트폴리오 만들기
+                </li>
+                <li className="hover:text-emerald-400 cursor-pointer transition-colors">
+                  Next.js App Router 2025 패턴
+                </li>
+              </ul>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   );
