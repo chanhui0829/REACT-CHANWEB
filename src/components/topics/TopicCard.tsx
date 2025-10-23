@@ -1,4 +1,4 @@
-import { CaseSensitive } from "lucide-react";
+import { CaseSensitive, Eye, Heart } from "lucide-react";
 import { Card, Separator } from "../ui";
 import type { Topic } from "@/types/topic.type";
 import dayjs from "dayjs";
@@ -108,10 +108,28 @@ export function TopicCard({ props }: Props) {
         />
       </div>
       <Separator />
-      <div className="w-full flex items-center justify-between">
-        <p>{nickname}</p>
-        <p>{dayjs(props.created_at).format("YYYY. MM. DD")}</p>
-        {/* <p>{dayjs(props.created_at).fromNow()}</p> */}
+      <div className="w-full flex justify-between items-start text-sm">
+        <div className="flex flex-col text-gray-400">
+          <p className="font-semibold text-white mb-0.5">{nickname}</p>
+
+          <p className="text-gray-500 text-xs">{props.category}</p>
+        </div>
+
+        <div className="flex flex-col items-end text-white">
+          <div className="flex gap-2 text-xs mb-1">
+            <p className="flex items-center gap-1">
+              <Eye size={14} className="text-gray-400" />
+              <span>{props.views}</span>
+            </p>
+            <Separator orientation="vertical" className="!h-4" />
+            <p className="flex items-center gap-1">
+              <Heart color="#ef4444" fill="#ef4444" size={14} />
+              <span>{props.likes}</span>
+            </p>
+          </div>
+
+          <p className="text-xs">{dayjs(props.created_at).fromNow()}</p>
+        </div>
       </div>
     </Card>
   );

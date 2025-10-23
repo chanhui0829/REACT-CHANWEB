@@ -2,57 +2,95 @@ import { AppDeleteDialog, AppEditor } from "@/components/common";
 import { Button, Separator } from "@/components/ui";
 import supabase from "@/lib/supabase";
 import { useAuthStore } from "@/stores";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye, Heart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import CommentBox from "./comment";
+import type { Topic } from "@/types/topic.type";
 
 export default function TopicDetail() {
   const navigate = useNavigate();
-  const params = useParams();
-  const rawId = params.id; // string | undefined
-
-  // id가 없거나 숫자로 변환 불가하면 처리
-  const topicId = rawId ? Number(rawId) : NaN;
-  useEffect(() => {
-    if (!rawId) {
-      // 필요한 경우 redirect 또는 에러 처리
-      console.error("Invalid topic id");
-    }
-  }, [rawId]);
-
+  const { id } = useParams();
+  const topicId = Number(id);
   const user = useAuthStore((state) => state.user);
 
-  const [author, setAuthor] = useState<string>("");
-  const [title, setTitle] = useState<string>("");
-  const [content, setContent] = useState<string>("");
-  const [category, setCategory] = useState<string>("");
-  const [thumbnail, setThumbnail] = useState<string>("");
+  const [topic, setTopic] = useState<Topic>();
+  const [likesCount, setLikesCount] = useState<number>(0);
+  const [isLiked, setIsLiked] = useState<boolean>(false);
 
+  // 🔹 토픽 불러오기
   const fetchTopic = async () => {
+    const { data, error } = await supabase
+      .from("topic")
+      .select("*")
+      .eq("id", topicId)
+      .single();
+
+    if (error) return toast.error(error.message);
+    setTopic(data);
+  };
+
+  // 🔹 조회수 +1
+  const increaseViews = async () => {
+    await supabase.rpc("increment_topic_views", { topic_id: topicId });
+  };
+
+  // 🔹 좋아요 여부 확인
+  const checkIfLiked = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("topic_likes")
+      .select("*")
+      .eq("topic_id", topicId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) console.error(error);
+    setIsLiked(!!data);
+  };
+
+  // 🔹 좋아요 개수 가져오기
+  const fetchLikesCount = async () => {
+    // ① 전체 좋아요 수 (topic.likes)
+    const { data: topicData, error: topicError } = await supabase
+      .from("topic")
+      .select("likes")
+      .eq("id", topicId)
+      .single();
+
+    if (topicError) console.error(topicError);
+    else setLikesCount(topicData?.likes ?? 0);
+
+    // ② 현재 로그인 유저가 이 토픽에 좋아요 했는지 확인
+    const { data: likeData, error: likeError } = await supabase
+      .from("topic_likes")
+      .select("id")
+      .eq("topic_id", topicId)
+      .maybeSingle(); // maybeSingle: 없을 경우 null 반환
+
+    if (likeError) console.error(likeError);
+    else setIsLiked(!!likeData);
+  };
+
+  // 🔹 좋아요 토글
+  const toggleLike = async () => {
+    if (!user) return toast.error("로그인이 필요합니다.");
+
     try {
-      const { data: topic, error } = await supabase
-        .from("topic")
-        .select("*")
-        .eq("id", topicId);
+      const { data, error } = await supabase.rpc("toggle_topic_like", {
+        p_topic_id: topicId,
+      });
+      if (error) throw error;
 
-      if (error) {
-        toast.error(error.message);
-        return;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        setIsLiked(Boolean(row.liked));
+        setLikesCount(Number(row.like_count ?? 0));
       }
-
-      if (topic) {
-        console.log(topic);
-        setAuthor(topic[0].author);
-        setTitle(topic[0].title);
-        setContent(topic[0].content);
-        setCategory(topic[0].category);
-        setThumbnail(topic[0].thumbnail);
-      }
-    } catch (error) {
-      console.log(error);
-      throw error;
+    } catch (err) {
+      console.error(err);
+      toast.error("좋아요 처리 중 오류가 발생했습니다.");
     }
   };
 
@@ -73,14 +111,19 @@ export default function TopicDetail() {
   };
 
   useEffect(() => {
+    increaseViews();
     fetchTopic();
+    fetchLikesCount();
+    checkIfLiked();
   }, [topicId]);
+
+  if (!topic) return <div>로딩중...</div>;
 
   return (
     <main className="w-full h-full min-h-[720px] flex flex-col">
       <div
         className="relative w-full h-60 md:h-100 bg-cover bg-[50%_35%] bg-accent"
-        style={{ backgroundImage: `url(${thumbnail})` }}
+        style={{ backgroundImage: `url(${topic.thumbnail})` }}
       >
         {/* 뒤로 가기 */}
         <div className="absolute top-6 left-6 z-10 flex items-center gap-2 mt-5">
@@ -88,7 +131,7 @@ export default function TopicDetail() {
             <ArrowLeft />
           </Button>
           {/* 토픽을 작성한 사람의 user_id와 로그인한 사람의 user_id가 같은 경우에만 보이도록 설정. */}
-          {author === user?.id && (
+          {topic.author === user?.id && (
             <AppDeleteDialog
               onConfirm={() => handleDelete()}
               title="정말 해당 토픽을 삭제하시겠습니까??"
@@ -102,16 +145,42 @@ export default function TopicDetail() {
         <div className="absolute inset-0 bg-gradient-to-l from-[#0a0a0a] via-transparent to-transparent "></div>
       </div>
       <section className="relative w-full flex flex-col items-center -mt-40">
-        <span className="mb-4">{category}</span>
+        <span className="mb-4">{topic.category}</span>
         <h1 className="scroll-m-20 text-center font-extrabold tracking-tigh text-xl sm:text-2xl md:text-4xl">
-          {title}
+          {topic.title}
         </h1>
         <Separator className="!w-6 my-6 bg-foreground" />
         <span>2025.10.06</span>
       </section>
       {/* 에디터 내용을 블러와 렌더링 */}
       <div className="w-full py-10">
-        {content && <AppEditor props={JSON.parse(content)} readonly />}
+        {topic.content && (
+          <AppEditor props={JSON.parse(topic.content)} readonly />
+        )}
+      </div>
+      <div className="p-4">
+        <div className="flex gap-4 mt-4 items-center justify-end text-[16px] pr-6">
+          {/* 👁 조회수 */}
+          <div className="flex items-center gap-1.5 text-gray-200">
+            <Eye size={24} />
+            <span>{topic.views}</span>
+          </div>
+
+          {/* ❤️ 좋아요 */}
+          <button
+            className={`flex items-center gap-1.5 transition cursor-pointer ${
+              isLiked ? "text-red-500" : "text-gray-200"
+            }`}
+            onClick={toggleLike}
+          >
+            <Heart
+              size={22}
+              fill={isLiked ? "currentColor" : "none"}
+              stroke="currentColor"
+            />
+            <span>{likesCount}</span>
+          </button>
+        </div>
       </div>
       <Separator />
       <div className="relative via-zinc-900 to-zinc-950">

@@ -250,7 +250,7 @@ export default function CommentBox({ topicId }: { topicId: number }) {
                 className={`p-4 rounded-xl transition-all shadow-lg 
                 ${
                   isOwner
-                    ? "bg-zinc-900 border border-transparent ring-1 ring-emerald-500/50 hover:ring-emerald-400/70" // 소유자: 은은한 에메랄드 링
+                    ? "bg-zinc-900 border border-transparent ring-1 ring-zinc-400/80 hover:ring-zinc-200/70 " // 소유자: 은은한 에메랄드 링
                     : "bg-zinc-900 border border-zinc-800 hover:border-zinc-700" // 일반: 부드러운 징크 테두리
                 } 
                 hover:shadow-xl hover:shadow-zinc-900/50`}
@@ -259,7 +259,7 @@ export default function CommentBox({ topicId }: { topicId: number }) {
                   <div className="flex gap-3 items-center">
                     <CircleUserRound
                       className={`size-6 ${
-                        isOwner ? "text-emerald-400" : "text-zinc-400"
+                        isOwner ? "text-zinc-100" : "text-zinc-400"
                       }`}
                     />
                     <div className="flex flex-col">
