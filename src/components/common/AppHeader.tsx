@@ -22,7 +22,7 @@ function AppHeader() {
 
   return (
     <header className="fixed top-0 z-20 w-full flex items-center justify-center bg-[#121212]">
-      <div className="w-full max-w-[1328px] flex items-center justify-between px-6 py-3">
+      <div className="w-full max-w-[1328px] flex items-center justify-between px-6 py-2">
         {/* 로고 & 네비게이션 UI */}
         <div className="flex items-center gap-5">
           <img src="/assets/icons/chan.png" alt="@LOGO" className="w-18 h-12" />

@@ -86,7 +86,7 @@ function App() {
   );
 
   //페이지네이션
-  const ITEMS_PER_PAGE = 6;
+  const ITEMS_PER_PAGE = 10;
 
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedTopics = filteredTopics.slice(
@@ -240,42 +240,43 @@ function App() {
         </div>
         {/* 검색창 */}
         <div className="flex justify-center w-full ">
-          <div className="relative w-full max-w-2xl">
+          <div className="relative w-full max-w-xl">
             <div
               className="
             flex items-center
-            bg-white dark:bg-zinc-900
             rounded-full shadow-md border border-zinc-200 dark:border-zinc-700
-            hover:shadow-lg transition-all duration-300
-            focus-within:ring-2 focus-within:ring-emerald-500
+            focus-within:shadow-lg focus-within:shadow-zinc-600 transition-all duration-300
             overflow-hidden
+            focus-within:ring-2 focus-within:ring-zinc-500 
           "
             >
+              <Search
+                size={18}
+                className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 pointer-events-none "
+              />
               <Input
                 type="text"
-                value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="토픽 제목 또는 내용을 입력하세요."
                 className="
-              flex-1 h-12 border-none bg-transparent text-lg px-6 py-3
-              text-zinc-900 dark:text-zinc-100
-              placeholder:text-zinc-400 dark:placeholder:text-zinc-500
+              flex-1 h-14 border-none bg-zinc-900 pl-14
+              text-zinc-900 dark:text-zinc-100 !text-[16px]
+              placeholder:text-zinc-400 dark:placeholder:text-zinc-500  placeholder:text-[16px]
               focus-visible:ring-0 focus-visible:outline-none
             "
               />
               <Button
                 onClick={handleSearch}
                 className="
-                h-12 rounded-none rounded-r-full px-10 py-3
-              bg-emerald-400 hover:bg-emerald-500
-              dark:bg-emerald-500 dark:hover:bg-oremeraldange-400
+                h-14 rounded-none rounded-r-full pl-5 
+              bg-zinc-400 hover:bg-emerald-500
+              dark:bg-zinc-800 dark:hover:bg-zinc-700
               text-white font-semibold flex items-center gap-1
               transition-all duration-300
             "
               >
-                <Search size={18} />
-                <p className="pr-2">검색</p>
+                <p className="pr-2 tracking-[2px]">검색</p>
               </Button>
             </div>
           </div>
@@ -283,6 +284,9 @@ function App() {
 
         {/* 토픽 */}
         <div className="w-full flex flex-col gap-6">
+          <div className="flex items-center justify-end pr-5">
+            <p>힝하아힝</p>
+          </div>
           {paginatedTopics.length > 0 ? (
             <div className="grid md:grid-cols-2 gap-6">
               {paginatedTopics.map((topic) => (

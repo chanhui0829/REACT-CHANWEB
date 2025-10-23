@@ -120,7 +120,7 @@ export function AppDraftsDialog({ children }: Props) {
                     </div>
                     <AppDeleteDialog
                       onConfirm={() => handleDelete(draft.id)}
-                      title="정말 해당 작성중인 토픽을 삭제하시겠습니까??"
+                      title="정말 해당 작성중인 토픽을 삭제하시겠습니까?"
                       description="삭제하시면 해당 토픽의 모든 내용이 영구적으로 삭제되어 복구할 수 없습니다."
                     />
                   </div>
