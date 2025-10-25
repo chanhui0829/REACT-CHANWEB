@@ -28,7 +28,7 @@ React, Zustand, Supabase를 중심으로 사용자 인증, CRUD, 댓글, 좋아�
 ## 🍀 주요 기능
 
 👤 **사용자 인증**\
-Supabase Auth를 활용한 회원가입 / 로그인 / 로그아웃
+Supabase Auth를 활용한 회원가입 / 로그인 / 로그아웃 \
 UUID 기반 사용자 식별 및 정책 기반 접근 제어
 
 🗂 **토픽 CRUD**\
