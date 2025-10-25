@@ -13,7 +13,7 @@ function AppSidebar({ category, setCategory }: Props) {
 
   const toggleCategoryList = () => setIsOpen((prev) => !prev);
   return (
-    <aside className="sticky top-20 min-w-60 w-60 flex flex-col gap-6">
+    <aside className="sticky top-20 min-w-56 w-56 flex flex-col gap-6">
       {/* 상단 제목 + 토글 */}
       <div
         className="flex items-center justify-between cursor-pointer select-none"

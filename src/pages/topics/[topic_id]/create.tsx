@@ -1,9 +1,7 @@
+import supabase from "@/lib/supabase";
+import { useAuthStore } from "@/stores";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useAuthStore } from "@/stores";
-import { nanoid } from "nanoid";
-import supabase from "@/lib/supabase";
-
 import { AppEditor, AppFileUpload } from "@/components/common";
 import {
   Button,
@@ -17,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui";
-import { TOPIC_CATEGORY } from "@/constants/category.constant";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Asterisk,
@@ -25,9 +23,10 @@ import {
   ImageOff,
   Save,
 } from "lucide-react";
-import { toast } from "sonner";
-import type { Block } from "@blocknote/core";
+import { nanoid } from "nanoid";
+import { TOPIC_CATEGORY } from "@/constants/category.constant";
 import { TOPIC_STATUS } from "@/types/topic.type";
+import type { Block } from "@blocknote/core";
 
 export default function CreateTopic() {
   const user = useAuthStore((state) => state.user);
@@ -259,12 +258,9 @@ export default function CreateTopic() {
             <Asterisk size={14} className="text-[#F96859]" />
             <Label className="text-muted-foreground">카테고리</Label>
           </div>
-          <Select
-            value={category}
-            onValueChange={(value) => setCategory(value)}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="토픽(주제) 선택" />
+          <Select onValueChange={(value) => setCategory(value)}>
+            <SelectTrigger className="w-full !bg-input/30">
+              <SelectValue placeholder="카테고리 선택" />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
