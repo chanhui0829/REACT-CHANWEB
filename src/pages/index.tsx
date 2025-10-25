@@ -4,7 +4,13 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useAuthStore, usePaginationStore } from "@/stores";
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";
-import { CircleSmall, NotebookPen, PencilLine, Search } from "lucide-react";
+import {
+  CircleSmall,
+  NotebookPen,
+  PencilLine,
+  Search,
+  Funnel,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { TOPIC_STATUS, type Topic } from "@/types/topic.type";
 import { TopicCard } from "@/components/topics";
@@ -17,7 +23,19 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "../components/ui";
+
+const SORT_CATEGORY = [
+  { id: 1, label: "최신순", sortOption: "latest" },
+  { id: 2, label: "좋아요순", sortOption: "likes" },
+  { id: 3, label: "조회순", sortOption: "views" },
+];
 
 function App() {
   const navigate = useNavigate();
@@ -34,6 +52,8 @@ function App() {
 
   // ⭐️ [수정 1] 임시 저장 토픽 존재 여부 상태
   const [hasDrafts, setHasDrafts] = useState<boolean>(false);
+  //검색어
+  const [sortOption, setSortOption] = useState<string>("latest");
 
   // ⭐️ [수정 2] 임시 저장 토픽 존재 여부를 가져오는 함수
   const checkDraftExistence = async (userId: string) => {
@@ -60,24 +80,6 @@ function App() {
     setHasDrafts(data?.length > 0);
   };
 
-  // ⭐️ [수정 3] 사용자 ID가 로드될 때마다 존재 여부 확인
-  useEffect(() => {
-    if (user?.id) {
-      checkDraftExistence(user.id);
-    } else {
-      setHasDrafts(false);
-    }
-
-    // 1분마다 새로고침하여 상태 업데이트
-    const intervalId = setInterval(() => {
-      if (user?.id) {
-        checkDraftExistence(user.id);
-      }
-    }, 60000);
-
-    return () => clearInterval(intervalId);
-  }, [user?.id]);
-
   //검색어가 있을 때 필터링
   const filteredTopics = topics.filter(
     (topic) =>
@@ -97,6 +99,8 @@ function App() {
 
   //카테고리 변경
   const handleCategoryChange = (value: string) => {
+    setSortOption("latest");
+    setPage(1);
     setSearchQuery(""); // 검색 결과 상태 초기화
     setSearchInput(""); // 검색창 비우기
 
@@ -110,12 +114,21 @@ function App() {
       const query = supabase
         .from("topic")
         .select("*")
-        .eq("status", TOPIC_STATUS.PUBLISH)
-        .order("created_at", { ascending: false });
+        .eq("status", TOPIC_STATUS.PUBLISH);
 
       if (category && category.trim() !== "") query.eq("category", category);
 
-      const { data: topics, error } = await query;
+      // ✅ 정렬 기준에 따라 조건 분기
+      const orderBy =
+        sortOption === "likes"
+          ? "likes"
+          : sortOption === "views"
+          ? "views"
+          : "created_at";
+
+      const { data: topics, error } = await query.order(orderBy, {
+        ascending: false,
+      });
 
       if (error) {
         toast.error(error.message);
@@ -182,9 +195,31 @@ function App() {
     }
   };
 
+  // ⭐️ 사용자 ID가 로드될 때마다 존재 여부 확인
+  useEffect(() => {
+    if (user?.id) {
+      checkDraftExistence(user.id);
+    } else {
+      setHasDrafts(false);
+    }
+
+    // 1분마다 새로고침하여 상태 업데이트
+    const intervalId = setInterval(() => {
+      if (user?.id) {
+        checkDraftExistence(user.id);
+      }
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [user?.id]);
+
   useEffect(() => {
     fetchTopics();
   }, [category]);
+
+  useEffect(() => {
+    fetchTopics();
+  }, [sortOption]);
 
   return (
     <main className="w-full h-full min-h-[720px] flex p-6 gap-6 mt-4">
@@ -206,7 +241,7 @@ function App() {
             >
               <NotebookPen className="w-6 h-6" />
             </Button>
-            {/* ⭐️ [수정 5] hasDrafts가 true일 때만 빨간 동그라미 뱃지 표시 */}
+
             {hasDrafts && (
               <CircleSmall
                 className="absolute top-0 right-0 text-red-500"
@@ -223,30 +258,29 @@ function App() {
       </div>
       {/* 토픽 콘텐츠 */}
       <section className="w-full lg:w-[calc(100%-264px)] flex-1 flex flex-col gap-12 mr-2">
-        <div className="flex flex-col gap-1 justify-center items-center">
-          <div className="flex items-center gap-2">
+        {/* UI 개선: 타이틀 중앙 정렬 및 여백 추가 */}
+        <div className="flex flex-col gap-1 justify-center items-center mb-10">
+          <div className="flex items-center gap-4">
             <img
               src="/assets/gifs/gif-002.gif"
               alt="@IMG2"
-              className="w-8 h-8"
+              className="w-14 h-14"
             />
-            <h1 className="text-3xl font-semibold tracking-tight scroll-m-20 mt-1">
-              토픽 인사이트
+            <h1 className="text-3xl font-semibold tracking-tight scroll-m-20 mt-4">
+              지식과 인사이트를 모아, <br />
+              토픽으로 깊이 있게 나누세요!
             </h1>
           </div>
-          <p className="sm:text-base md:text-lg text-muted-foreground">
-            지식과 인사이트를 모아, 토픽으로 깊이 있게 나누세요!
-          </p>
         </div>
-        {/* 검색창 */}
-        <div className="flex justify-center w-full ">
-          <div className="relative w-full max-w-xl">
+
+        <div className="flex justify-center w-full mb-10">
+          <div className="relative w-full max-w-2xl">
             <div
               className="
             flex items-center
-            rounded-full shadow-md border border-zinc-200 dark:border-zinc-700
+            rounded-full shadow-md border border-zinc-200 dark:border-zinc-700 
             focus-within:shadow-lg focus-within:shadow-zinc-600 transition-all duration-300
-            overflow-hidden
+            overflow-hidden bg-black
             focus-within:ring-2 focus-within:ring-zinc-500 
           "
             >
@@ -260,7 +294,7 @@ function App() {
                 onKeyDown={handleKeyPress}
                 placeholder="토픽 제목 또는 내용을 입력하세요."
                 className="
-              flex-1 h-14 border-none bg-zinc-900 pl-14
+              flex-1 h-14 border-none pl-14 
               text-zinc-900 dark:text-zinc-100 !text-[16px]
               placeholder:text-zinc-400 dark:placeholder:text-zinc-500  placeholder:text-[16px]
               focus-visible:ring-0 focus-visible:outline-none
@@ -282,13 +316,39 @@ function App() {
           </div>
         </div>
 
-        {/* 토픽 */}
+        {/* 토픽 & 정렬 기능 */}
         <div className="w-full flex flex-col gap-6">
-          <div className="flex items-center justify-end pr-5">
-            <p>힝하아힝</p>
+          <div className="flex w-full justify-end px-2">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <Funnel size={15} className="text-zinc-400 mb-0.5" />
+                <p className="text-xs text-zinc-400">정렬 기준</p>
+              </div>
+              <Select
+                value={sortOption}
+                onValueChange={(value) => setSortOption(value)}
+              >
+                <SelectTrigger className="w-40 border-zinc-700">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {SORT_CATEGORY.map((item) => {
+                      return (
+                        <SelectItem key={item.id} value={item.sortOption}>
+                          {item.label}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
+          {/* 토픽 카드 그리드 - UI 개선: gap-8로 간격 확대 */}
           {paginatedTopics.length > 0 ? (
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-2 gap-8">
               {paginatedTopics.map((topic) => (
                 <TopicCard key={topic.id} props={topic} />
               ))}

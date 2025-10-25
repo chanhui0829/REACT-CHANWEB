@@ -16,6 +16,7 @@ interface Props {
   props: Topic;
 }
 
+//본문 출력(blockNote)
 function extractTextFromContent(content: string | [], maxChars = 200) {
   try {
     const parsed = typeof content === "string" ? JSON.parse(content) : content;
