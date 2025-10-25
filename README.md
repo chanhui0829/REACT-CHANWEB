@@ -9,17 +9,17 @@ React, Zustand, Supabase를 중심으로 사용자 인증, CRUD, 댓글, 좋아�
 
 ## ⚙️ 기술 스택
 
-**Frontend**\
+**Frontend**
 - React, TypeScript, Vite, TailwindCSS, Shadcn UI
 
-**State Management**\
+**State Management**
 - Zustand
 
-**Backend & DB**\
+**Backend & DB**
 - Supabase (PostgreSQL)\
 - Auth & API / RLS Policy / Edge Function
 
-**Deploy & UX**\
+**Deploy & UX**
 - Vercel\
 - Responsive UI / Dark Mode / Toast 알림 / Lazy Loading
 
