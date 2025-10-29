@@ -14,7 +14,7 @@ import {
   PasswordInput,
 } from "@/components/ui";
 
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";
 import { useAuthStore } from "@/stores";
@@ -41,10 +41,14 @@ const formSchema = z.object({
 export default function SignIn() {
   const navigate = useNavigate();
 
+  //회원가입시 이메일 자동 입력
+  const location = useLocation();
+  const prefillEmail = location.state?.email || "";
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      email: prefillEmail,
       password: "",
     },
   });
