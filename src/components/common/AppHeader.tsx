@@ -1,11 +1,11 @@
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import { Separator } from "../ui";
 import { useAuthStore } from "@/stores";
 import { CircleUserRound } from "lucide-react";
-import { negative } from "zod";
 import { toast } from "sonner";
 
 function AppHeader() {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const reset = useAuthStore((state) => state.reset);
 
@@ -13,7 +13,7 @@ function AppHeader() {
     try {
       await reset(); //Zustand + Supabase 모두 로그아웃
       toast.success("로그아웃 되었습니다.");
-      negative("/sign-in");
+      navigate("/sign-in");
     } catch (error) {
       console.error(error);
       toast.error("로그아웃 중 오류가 발생하였습니다.");
@@ -30,8 +30,6 @@ function AppHeader() {
             <NavLink to={"/"} className="font-semibold">
               토픽 인사이트
             </NavLink>
-            <Separator orientation="vertical" className="!h-4" />
-            <div className="font-semibold">포트폴리오</div>
           </div>
         </div>
         {user ? (

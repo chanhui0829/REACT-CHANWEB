@@ -1,7 +1,6 @@
 import { AppDraftsDialog, AppSidebar } from "../components/common";
-
 import { useNavigate, useSearchParams } from "react-router";
-import { useAuthStore, usePaginationStore } from "@/stores";
+import { useAuthStore } from "@/stores";
 import { toast } from "sonner";
 import supabase from "@/lib/supabase";
 import {
@@ -30,44 +29,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui";
-
-const SORT_CATEGORY = [
-  { id: 1, label: "최신순", sortOption: "latest" },
-  { id: 2, label: "좋아요순", sortOption: "likes" },
-  { id: 3, label: "조회순", sortOption: "views" },
-];
+import { SORT_CATEGORY } from "@/constants/sort.constant";
 
 function App() {
   const navigate = useNavigate();
-
   const user = useAuthStore((state) => state.user);
-  const { currentPage, setPage } = usePaginationStore();
-
-  const [searchInput, setSearchInput] = useState(""); // 입력 중 값
-  const [searchQuery, setSearchQuery] = useState(""); // 실제 검색 실행 값
   const [searchParams, setSearchParams] = useSearchParams();
   const category = searchParams.get("category") || "";
 
-  const [topics, setTopics] = useState<Topic[]>([]);
+  // ✅ 페이지 관련 상태
+  const [currentPage, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
-  // ⭐️ [수정 1] 임시 저장 토픽 존재 여부 상태
-  const [hasDrafts, setHasDrafts] = useState<boolean>(false);
-  //검색어
+  // ✅ 검색 및 정렬 상태
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<string>("latest");
 
-  // ⭐️ [수정 2] 임시 저장 토픽 존재 여부를 가져오는 함수
+  // ✅ 토픽 관련 상태
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [hasDrafts, setHasDrafts] = useState<boolean>(false);
+
+  // ⭐️ 임시 저장 토픽 존재 여부 확인
   const checkDraftExistence = async (userId: string) => {
     if (!userId) {
       setHasDrafts(false);
       return;
     }
 
-    // 데이터 하나만 확인할 때는 count를 쓰지 않고 limit(1)로 효율을 높일 수 있습니다.
     const { data, error } = await supabase
       .from("topic")
       .select("id")
       .eq("author", userId)
-      .eq("status", TOPIC_STATUS.TEMP) // 임시 저장 상태(발행 안 됨)
+      .eq("status", TOPIC_STATUS.TEMP)
       .limit(1);
 
     if (error) {
@@ -76,49 +71,24 @@ function App() {
       return;
     }
 
-    // ⭐️ 데이터가 1개 이상 있으면 true
     setHasDrafts(data?.length > 0);
   };
 
-  //검색어가 있을 때 필터링
-  const filteredTopics = topics.filter(
-    (topic) =>
-      topic.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      topic.content?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  //페이지네이션
-  const ITEMS_PER_PAGE = 10;
-
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedTopics = filteredTopics.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
-  );
-  const totalPages = Math.ceil(filteredTopics.length / ITEMS_PER_PAGE);
-
-  //카테고리 변경
-  const handleCategoryChange = (value: string) => {
-    setSortOption("latest");
-    setPage(1);
-    setSearchQuery(""); // 검색 결과 상태 초기화
-    setSearchInput(""); // 검색창 비우기
-
-    if (value === "") setSearchParams({});
-    else setSearchParams({ category: value });
-  };
-
-  //발행된 토픽 조회
+  // ✅ Supabase 기반 페이지네이션
   const fetchTopics = async () => {
     try {
-      const query = supabase
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIndex = startIndex + ITEMS_PER_PAGE - 1;
+
+      let query = supabase
         .from("topic")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("status", TOPIC_STATUS.PUBLISH);
 
-      if (category && category.trim() !== "") query.eq("category", category);
+      if (category && category.trim() !== "") {
+        query = query.eq("category", category);
+      }
 
-      // ✅ 정렬 기준에 따라 조건 분기
       const orderBy =
         sortOption === "likes"
           ? "likes"
@@ -126,25 +96,53 @@ function App() {
           ? "views"
           : "created_at";
 
-      const { data: topics, error } = await query.order(orderBy, {
-        ascending: false,
-      });
+      const { data, error, count } = await query
+        .order(orderBy, { ascending: false })
+        .range(startIndex, endIndex);
 
       if (error) {
         toast.error(error.message);
         return;
       }
 
-      if (topics) {
-        setTopics(topics);
+      setTopics(data || []);
+      if (count) {
+        setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
       }
     } catch (error) {
-      console.log(error);
-      throw error;
+      console.error(error);
     }
   };
 
-  //나만의 토픽 생성 버튼 클릭
+  // ✅ 검색 실행
+  const handleSearch = () => {
+    if (searchInput.trim().length < 2) {
+      toast.error("검색어를 두 글자 이상 입력해주세요. 😊");
+      return;
+    }
+    setSearchQuery(searchInput.trim());
+    setPage(1);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
+  // ✅ 카테고리 변경
+  const handleCategoryChange = (value: string) => {
+    setSortOption("latest");
+    setPage(1);
+    setSearchQuery("");
+    setSearchInput("");
+
+    if (value === "") setSearchParams({});
+    else setSearchParams({ category: value });
+  };
+
+  // ✅ 나만의 토픽 생성
   const handleRoute = async () => {
     if (!user) {
       toast.warning("토픽 작성은 로그인 후 가능합니다.");
@@ -176,26 +174,7 @@ function App() {
     }
   };
 
-  // ✅ 검색 실행 함수
-  const handleSearch = () => {
-    if (searchInput.trim().length < 2) {
-      toast.error("검색어를 두 글자 이상 입력해주세요. 😊");
-      return;
-    }
-    fetchTopics();
-    setSearchQuery(searchInput.trim());
-    setPage(1); // 페이지 첫 페이지로 이동
-  };
-
-  // ✅ 엔터키 입력 시 검색
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSearch();
-    }
-  };
-
-  // ⭐️ 사용자 ID가 로드될 때마다 존재 여부 확인
+  // ✅ 사용자 상태 변화 시 임시 저장 체크
   useEffect(() => {
     if (user?.id) {
       checkDraftExistence(user.id);
@@ -203,7 +182,6 @@ function App() {
       setHasDrafts(false);
     }
 
-    // 1분마다 새로고침하여 상태 업데이트
     const intervalId = setInterval(() => {
       if (user?.id) {
         checkDraftExistence(user.id);
@@ -213,16 +191,21 @@ function App() {
     return () => clearInterval(intervalId);
   }, [user?.id]);
 
+  // ✅ 데이터 불러오기
   useEffect(() => {
     fetchTopics();
-  }, [category]);
+  }, [category, sortOption, currentPage]);
 
-  useEffect(() => {
-    fetchTopics();
-  }, [sortOption]);
+  // ✅ 검색 필터링 (클라이언트에서 필터)
+  const filteredTopics = topics.filter(
+    (topic) =>
+      topic.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      topic.content?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <main className="w-full h-full min-h-[720px] flex p-6 gap-6 mt-4">
+      {/* floating 버튼 */}
       <div className="fixed flex gap-2 right-1/2 bottom-10 translate-x-1/2 z-20 items-center ">
         <Button
           variant={"destructive"}
@@ -252,13 +235,15 @@ function App() {
           </div>
         </AppDraftsDialog>
       </div>
-      {/* 카테고리 사이드바 */}
-      <div className="hidden lg:block lg:min-w-60 lg:w-60 lg:h-full ">
+
+      {/* 사이드바 */}
+      <div className="hidden lg:block lg:min-w-60 lg:w-60 lg:h-full">
         <AppSidebar category={category} setCategory={handleCategoryChange} />
       </div>
-      {/* 토픽 콘텐츠 */}
+
+      {/* 메인 콘텐츠 */}
       <section className="w-full lg:w-[calc(100%-264px)] flex-1 flex flex-col gap-12 mr-2">
-        {/* UI 개선: 타이틀 중앙 정렬 및 여백 추가 */}
+        {/* 타이틀 */}
         <div className="flex flex-col gap-1 justify-center items-center mb-10">
           <div className="flex items-center gap-4">
             <img
@@ -273,42 +258,34 @@ function App() {
           </div>
         </div>
 
+        {/* 검색창 */}
         <div className="flex justify-center w-full mb-10">
           <div className="relative w-full max-w-2xl">
             <div
-              className="
-            flex items-center
-            rounded-full shadow-md border border-zinc-200 dark:border-zinc-700 
-            focus-within:shadow-lg focus-within:shadow-zinc-600 transition-all duration-300
-            overflow-hidden bg-black
-            focus-within:ring-2 focus-within:ring-zinc-500 
-          "
+              className="flex items-center rounded-full shadow-md border border-zinc-200 
+              dark:border-zinc-700 focus-within:shadow-lg focus-within:shadow-zinc-600 
+              transition-all duration-300 overflow-hidden bg-black focus-within:ring-2 
+              focus-within:ring-zinc-500"
             >
               <Search
                 size={18}
-                className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 pointer-events-none "
+                className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 pointer-events-none"
               />
               <Input
                 type="text"
+                value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder="토픽 제목 또는 내용을 입력하세요."
-                className="
-              flex-1 h-14 border-none pl-14 
-              text-zinc-900 dark:text-zinc-100 !text-[16px]
-              placeholder:text-zinc-400 dark:placeholder:text-zinc-500  placeholder:text-[16px]
-              focus-visible:ring-0 focus-visible:outline-none
-            "
+                className="flex-1 h-14 border-none pl-14 text-zinc-900 dark:text-zinc-100 !text-[16px]
+                placeholder:text-zinc-400 dark:placeholder:text-zinc-500 placeholder:text-[16px]
+                focus-visible:ring-0 focus-visible:outline-none"
               />
               <Button
                 onClick={handleSearch}
-                className="
-                h-14 rounded-none rounded-r-full pl-5 
-              bg-zinc-400 hover:bg-emerald-500
-              dark:bg-zinc-800 dark:hover:bg-zinc-700
-              text-white font-semibold flex items-center gap-1
-              transition-all duration-300
-            "
+                className="h-14 rounded-none rounded-r-full pl-5 bg-zinc-400 hover:bg-emerald-500
+                dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white font-semibold flex items-center gap-1
+                transition-all duration-300"
               >
                 <p className="pr-2 tracking-[2px]">검색</p>
               </Button>
@@ -316,7 +293,7 @@ function App() {
           </div>
         </div>
 
-        {/* 토픽 & 정렬 기능 */}
+        {/* 정렬 + 토픽 리스트 */}
         <div className="w-full flex flex-col gap-6">
           <div className="flex w-full justify-end px-2">
             <div className="flex items-center gap-3">
@@ -333,23 +310,21 @@ function App() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {SORT_CATEGORY.map((item) => {
-                      return (
-                        <SelectItem key={item.id} value={item.sortOption}>
-                          {item.label}
-                        </SelectItem>
-                      );
-                    })}
+                    {SORT_CATEGORY.map((item) => (
+                      <SelectItem key={item.id} value={item.sortOption}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* 토픽 카드 그리드 - UI 개선: gap-8로 간격 확대 */}
-          {paginatedTopics.length > 0 ? (
+          {/* 토픽 카드 */}
+          {filteredTopics.length > 0 ? (
             <div className="grid md:grid-cols-2 gap-8">
-              {paginatedTopics.map((topic) => (
+              {filteredTopics.map((topic) => (
                 <TopicCard key={topic.id} props={topic} />
               ))}
             </div>
@@ -362,7 +337,7 @@ function App() {
           )}
         </div>
 
-        {/* 페이지네이션 구현 */}
+        {/* 페이지네이션 */}
         {totalPages > 1 && (
           <Pagination>
             <PaginationContent>

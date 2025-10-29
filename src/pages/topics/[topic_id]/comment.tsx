@@ -34,21 +34,6 @@ export default function CommentBox({ topicId }: { topicId: number }) {
   const hasMoreRef = useRef(true);
   const throttleTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // 1. [useEffect #1] 로그인 유저 정보 로드 (마운트 시 1회)
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) setCurrentUserId(data.user.id);
-    };
-    fetchUser();
-  }, []);
-
-  // 2. [useEffect #2] comments와 hasMore 상태 변화 시 Ref 업데이트 (통합)
-  useEffect(() => {
-    commentsLengthRef.current = comments.length;
-    hasMoreRef.current = hasMore;
-  }, [comments, hasMore]);
-
   // ✅ 댓글 불러오기 함수 (useCallback으로 안정화)
   const fetchComments = useCallback(
     async (from = 0, to = 5, append = false) => {
@@ -82,12 +67,6 @@ export default function CommentBox({ topicId }: { topicId: number }) {
     [topicId]
   );
 
-  // 3. [useEffect #3] 초기 불러오기 (topicId 변경 시)
-  useEffect(() => {
-    fetchComments(0, 5, false);
-    setHasMore(true);
-  }, [topicId, fetchComments]);
-
   // ✅ “더보기” 로직 (Ref를 사용하여 현재 길이를 참조)
   const handleLoadMore = useCallback(async () => {
     const newFrom = commentsLengthRef.current; // Ref 사용
@@ -115,22 +94,6 @@ export default function CommentBox({ topicId }: { topicId: number }) {
     },
     [handleLoadMore]
   );
-
-  // 4. [useEffect #4] 옵저버 등록 및 클린업 (최초 1회 실행)
-  useEffect(() => {
-    const observer = new IntersectionObserver(handleObserver, {
-      threshold: 1.0,
-    });
-    const currentLoaderRef = loaderRef.current;
-    if (currentLoaderRef) observer.observe(currentLoaderRef);
-
-    return () => {
-      if (currentLoaderRef) observer.unobserve(currentLoaderRef);
-      if (throttleTimer.current) {
-        clearTimeout(throttleTimer.current);
-      }
-    };
-  }, [handleObserver]);
 
   // 댓글 등록
   const handleAddComment = async () => {
@@ -203,6 +166,43 @@ export default function CommentBox({ topicId }: { topicId: number }) {
     }
   };
 
+  // 1. [useEffect #1] 로그인 유저 정보 로드 (마운트 시 1회)
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) setCurrentUserId(data.user.id);
+    };
+    fetchUser();
+  }, []);
+
+  // 2. [useEffect #2] comments와 hasMore 상태 변화 시 Ref 업데이트 (통합)
+  useEffect(() => {
+    commentsLengthRef.current = comments.length;
+    hasMoreRef.current = hasMore;
+  }, [comments, hasMore]);
+
+  // 3. [useEffect #3] 초기 불러오기 (topicId 변경 시)
+  useEffect(() => {
+    fetchComments(0, 5, false);
+    setHasMore(true);
+  }, [topicId, fetchComments]);
+
+  // 4. [useEffect #4] 옵저버 등록 및 클린업 (최초 1회 실행)
+  useEffect(() => {
+    const observer = new IntersectionObserver(handleObserver, {
+      threshold: 1.0,
+    });
+    const currentLoaderRef = loaderRef.current;
+    if (currentLoaderRef) observer.observe(currentLoaderRef);
+
+    return () => {
+      if (currentLoaderRef) observer.unobserve(currentLoaderRef);
+      if (throttleTimer.current) {
+        clearTimeout(throttleTimer.current);
+      }
+    };
+  }, [handleObserver]);
+
   return (
     <section className="w-full max-w-3xl mx-auto mt-6">
       <div className="flex gap-2 pl-3 mb-4">
@@ -246,7 +246,6 @@ export default function CommentBox({ topicId }: { topicId: number }) {
             return (
               <article
                 key={c.id}
-                // ⭐️ [수정] 트렌디한 배경 및 테두리 효과 적용 ⭐️
                 className={`p-4 rounded-xl transition-all shadow-lg 
                 ${
                   isOwner

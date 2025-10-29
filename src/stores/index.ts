@@ -39,18 +39,6 @@ export const useAuthStore = create<AuthStore>()(
     { name: "auth-storage", partialize: (state) => ({ user: state.user }) } //user만 저장
   )
 );
-
-//Pagination Store
-interface PaginationState {
-  currentPage: number;
-  setPage: (page: number) => void;
-}
-
-export const usePaginationStore = create<PaginationState>((set) => ({
-  currentPage: 1,
-  setPage: (page) => set({ currentPage: page }),
-}));
-
 // //Search Store
 // interface SearchState {
 //   query: string;

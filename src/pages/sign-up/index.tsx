@@ -87,30 +87,25 @@ export default function SignUp() {
     console.log("회원가입 버튼 클릭!");
 
     if (!serviceAgreed || !privacyAgreed) {
-      // 경고 메시지 - Toast UI 발생
       toast.warning("필수 동의항목을 체크해주세요.");
       return;
     }
 
     try {
-      const {
-        data: { user, session },
-        error,
-      } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
       });
 
-      // 회원가입 실패
       if (error) {
-        // 에러 메시지 - Toast UI 발생
         toast.error(error.message);
         return;
       }
 
-      // SignUp.js의 onSubmit 함수 내에서 (트리거를 사용하지 않는 경우)
-      if (user && session) {
-        // ⚠️ DB 트리거를 사용하지 않을 경우에만 이 업데이트 로직을 사용해야 합니다.
+      //supabase는 회원가입 시 세션 자동 생성 > 수동으로 로그아웃 실행.
+      await supabase.auth.signOut();
+
+      if (data.user) {
         const { error: updateError } = await supabase
           .from("user")
           .update({
@@ -118,17 +113,17 @@ export default function SignUp() {
             privacy_agreed: privacyAgreed,
             marketing_agreed: marketingAgreed,
           })
-          .eq("id", user.id);
+          .eq("id", data.user.id);
 
         if (updateError) {
           toast.error("약관 동의 정보 저장 중 오류가 발생했습니다.");
         }
 
-        toast.success("회원가입을 완료하였습니다.");
-        navigate("/");
+        toast.success("회원가입이 완료되었습니다. 로그인해주세요!");
+        navigate("/sign-in", { state: { email: values.email } });
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       throw new Error(`${error}`);
     }
   };
