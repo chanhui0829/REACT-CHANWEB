@@ -1,17 +1,22 @@
-import { AppDraftsDialog, AppSidebar } from "../components/common";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { useAuthStore } from "@/stores";
 import { toast } from "sonner";
-import supabase from "@/lib/supabase";
 import {
   CircleSmall,
+  Funnel,
   NotebookPen,
   PencilLine,
   Search,
-  Funnel,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+
+// Store & Utils
+import { useAuthStore } from "@/stores";
+import supabase from "@/lib/supabase";
 import { TOPIC_STATUS, type Topic } from "@/types/topic.type";
+import { SORT_CATEGORY } from "@/constants/sort.constant";
+
+// Components
+import { AppDraftsDialog, AppSidebar } from "@/components/common";
 import { TopicCard } from "@/components/topics";
 import {
   Button,
@@ -28,65 +33,72 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui";
-import { SORT_CATEGORY } from "@/constants/sort.constant";
+} from "@/components/ui";
 
 function App() {
+  // ======================
+  // 🔹 상태 관리
+  // ======================
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const [searchParams, setSearchParams] = useSearchParams();
   const category = searchParams.get("category") || "";
 
-  // ✅ 페이지 관련 상태
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [hasDrafts, setHasDrafts] = useState(false);
+
   const [currentPage, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  // ✅ 검색 및 정렬 상태
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<string>("latest");
 
-  // ✅ 토픽 관련 상태
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [hasDrafts, setHasDrafts] = useState<boolean>(false);
-
-  // ⭐️ 임시 저장 토픽 존재 여부 확인
-  const checkDraftExistence = async (userId: string) => {
-    if (!userId) {
-      setHasDrafts(false);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("topic")
-      .select("id")
-      .eq("author", userId)
-      .eq("status", TOPIC_STATUS.TEMP)
-      .limit(1);
-
-    if (error) {
-      console.error("Draft Check Error:", error);
-      setHasDrafts(false);
-      return;
-    }
-
-    setHasDrafts(data?.length > 0);
+  // ======================
+  // 🔹 유틸 함수
+  // ======================
+  const handleSupabaseError = (message?: string) => {
+    toast.error(message || "알 수 없는 오류가 발생했습니다.");
   };
 
-  // ✅ Supabase 기반 페이지네이션
-  const fetchTopics = async () => {
-    try {
-      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-      const endIndex = startIndex + ITEMS_PER_PAGE - 1;
+  const checkDraftExistence = useCallback(async (userId: string) => {
+    if (!userId) return setHasDrafts(false);
 
+    try {
+      const { data, error } = await supabase
+        .from("topic")
+        .select("id", { count: "exact" })
+        .eq("author", userId)
+        .eq("status", TOPIC_STATUS.TEMP)
+        .limit(1);
+
+      if (error) throw error;
+      setHasDrafts((data?.length || 0) > 0);
+    } catch {
+      handleSupabaseError("임시 저장 토픽 확인 중 오류가 발생했습니다.");
+      setHasDrafts(false);
+    }
+  }, []);
+
+  const [startIndex, endIndex] = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return [start, start + ITEMS_PER_PAGE - 1];
+  }, [currentPage]);
+
+  const fetchTopics = useCallback(async () => {
+    try {
       let query = supabase
         .from("topic")
         .select("*", { count: "exact" })
         .eq("status", TOPIC_STATUS.PUBLISH);
 
-      if (category && category.trim() !== "") {
-        query = query.eq("category", category);
+      if (category) query = query.eq("category", category);
+
+      if (searchQuery.trim() !== "") {
+        query = query.or(
+          `title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`
+        );
       }
 
       const orderBy =
@@ -100,24 +112,18 @@ function App() {
         .order(orderBy, { ascending: false })
         .range(startIndex, endIndex);
 
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
+      if (error) throw error;
 
       setTopics(data || []);
-      if (count) {
-        setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
-      }
-    } catch (error) {
-      console.error(error);
+      if (count) setTotalPages(Math.ceil(count / ITEMS_PER_PAGE));
+    } catch {
+      handleSupabaseError("토픽을 불러오는 중 오류가 발생했습니다.");
     }
-  };
+  }, [category, sortOption, currentPage, searchQuery, startIndex, endIndex]);
 
-  // ✅ 검색 실행
   const handleSearch = () => {
     if (searchInput.trim().length < 2) {
-      toast.error("검색어를 두 글자 이상 입력해주세요. 😊");
+      toast.warning("검색어를 두 글자 이상 입력해주세요. 😊");
       return;
     }
     setSearchQuery(searchInput.trim());
@@ -131,7 +137,6 @@ function App() {
     }
   };
 
-  // ✅ 카테고리 변경
   const handleCategoryChange = (value: string) => {
     setSortOption("latest");
     setPage(1);
@@ -142,121 +147,117 @@ function App() {
     else setSearchParams({ category: value });
   };
 
-  // ✅ 나만의 토픽 생성
   const handleRoute = async () => {
     if (!user) {
       toast.warning("토픽 작성은 로그인 후 가능합니다.");
       return;
     }
 
-    const { data, error } = await supabase
-      .from("topic")
-      .insert([
-        {
-          status: null,
-          title: null,
-          content: null,
-          category: null,
-          thumbnail: null,
-          author: user.id,
-        },
-      ])
-      .select();
+    try {
+      const { data, error } = await supabase
+        .from("topic")
+        .insert([
+          {
+            status: null,
+            title: null,
+            content: null,
+            category: null,
+            thumbnail: null,
+            author: user.id,
+          },
+        ])
+        .select("id")
+        .single();
 
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+      if (error) throw error;
 
-    if (data) {
-      toast.success("토픽을 생성하였습니다.");
-      navigate(`/topics/${data[0].id}/create`);
+      if (data) {
+        toast.success("토픽을 생성하였습니다.");
+        navigate(`/topics/${data.id}/create`);
+      }
+    } catch {
+      handleSupabaseError("토픽 생성 중 오류가 발생했습니다.");
     }
   };
 
-  // ✅ 사용자 상태 변화 시 임시 저장 체크
   useEffect(() => {
-    if (user?.id) {
-      checkDraftExistence(user.id);
-    } else {
-      setHasDrafts(false);
-    }
+    if (user?.id) checkDraftExistence(user.id);
+    else setHasDrafts(false);
+  }, [user?.id, checkDraftExistence]);
 
-    const intervalId = setInterval(() => {
-      if (user?.id) {
-        checkDraftExistence(user.id);
-      }
-    }, 60000);
-
-    return () => clearInterval(intervalId);
-  }, [user?.id]);
-
-  // ✅ 데이터 불러오기
   useEffect(() => {
     fetchTopics();
-  }, [category, sortOption, currentPage]);
+  }, [fetchTopics]);
 
-  // ✅ 검색 필터링 (클라이언트에서 필터)
-  const filteredTopics = topics.filter(
-    (topic) =>
-      topic.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      topic.content?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const visiblePages = useMemo(() => {
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [currentPage, totalPages]);
 
+  // ======================
+  // 🔹 UI 렌더링
+  // ======================
   return (
-    <main className="w-full h-full min-h-[720px] flex p-6 gap-6 mt-4">
-      {/* floating 버튼 */}
-      <div className="fixed flex gap-2 right-1/2 bottom-10 translate-x-1/2 z-20 items-center ">
-        <Button
-          variant={"destructive"}
-          className="!py-5 !px-6 rounded-full transition-all duration-300 hover:scale-110"
-          onClick={handleRoute}
-        >
-          <PencilLine />
-          나만의 토픽 작성
-        </Button>
-        <AppDraftsDialog>
-          <div className="relative">
-            <Button
-              variant="outline"
-              size="icon"
-              className="rounded-full w-10 h-10 p-0 shadow-lg border-2 border-zinc-700 bg-zinc-800 hover:bg-zinc-700"
-            >
-              <NotebookPen className="w-6 h-6" />
-            </Button>
-
-            {hasDrafts && (
-              <CircleSmall
-                className="absolute top-0 right-0 text-red-500"
-                fill="#EF4444"
-                size={14}
-              />
-            )}
-          </div>
-        </AppDraftsDialog>
-      </div>
-
-      {/* 사이드바 */}
-      <div className="hidden lg:block lg:min-w-60 lg:w-60 lg:h-full">
+    <main className="w-full h-full min-h-[720px] flex flex-col lg:flex-row p-6 gap-6 mt-4">
+      {/* ✅ 작은 화면용 상단 가로 스크롤 카테고리 바 */}
+      <div className="lg:hidden w-full mb-4 sticky top-[72px] z-50">
         <AppSidebar category={category} setCategory={handleCategoryChange} />
       </div>
 
-      {/* 메인 콘텐츠 */}
+      {/* ✅ 큰 화면용 사이드바 */}
+      <aside className="hidden lg:block lg:min-w-60 lg:w-60 lg:h-full">
+        <AppSidebar category={category} setCategory={handleCategoryChange} />
+      </aside>
+
+      {/* ✅ 메인 콘텐츠 */}
       <section className="w-full lg:w-[calc(100%-264px)] flex-1 flex flex-col gap-12 mr-2">
-        {/* 타이틀 */}
-        <div className="flex flex-col gap-1 justify-center items-center mb-10">
+        {/* Floating 버튼 */}
+        <div className="fixed flex gap-2 right-1/2 bottom-10 translate-x-1/2 z-20 items-center">
+          <Button
+            variant="destructive"
+            className="!py-5 !px-6 rounded-full transition-all duration-300 hover:scale-110"
+            onClick={handleRoute}
+          >
+            <PencilLine />
+            나만의 토픽 작성
+          </Button>
+
+          <AppDraftsDialog>
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full w-10 h-10 p-0 shadow-lg border-2 border-zinc-700 bg-zinc-800 hover:bg-zinc-700"
+              >
+                <NotebookPen className="w-6 h-6" />
+              </Button>
+
+              {hasDrafts && (
+                <CircleSmall
+                  className="absolute top-0 right-0 text-red-500"
+                  fill="#EF4444"
+                  size={14}
+                />
+              )}
+            </div>
+          </AppDraftsDialog>
+        </div>
+
+        {/* 헤더 */}
+        <header className="flex flex-col gap-1 justify-center items-center">
           <div className="flex items-center gap-4">
             <img
               src="/assets/gifs/gif-002.gif"
               alt="@IMG2"
               className="w-14 h-14"
             />
-            <h1 className="text-3xl font-semibold tracking-tight scroll-m-20 mt-4">
+            <h1 className="text-3xl font-semibold tracking-tight scroll-m-20 mt-4 text-center">
               지식과 인사이트를 모아, <br />
               토픽으로 깊이 있게 나누세요!
             </h1>
           </div>
-        </div>
+        </header>
 
         {/* 검색창 */}
         <div className="flex justify-center w-full mb-10">
@@ -321,10 +322,9 @@ function App() {
             </div>
           </div>
 
-          {/* 토픽 카드 */}
-          {filteredTopics.length > 0 ? (
+          {topics.length > 0 ? (
             <div className="grid md:grid-cols-2 gap-8">
-              {filteredTopics.map((topic) => (
+              {topics.map((topic) => (
                 <TopicCard key={topic.id} props={topic} />
               ))}
             </div>
@@ -348,14 +348,14 @@ function App() {
                 />
               </PaginationItem>
 
-              {[...Array(totalPages)].map((_, i) => (
-                <PaginationItem key={i}>
+              {visiblePages.map((page) => (
+                <PaginationItem key={page}>
                   <PaginationLink
                     href="#"
-                    isActive={currentPage === i + 1}
-                    onClick={() => setPage(i + 1)}
+                    isActive={currentPage === page}
+                    onClick={() => setPage(page)}
                   >
-                    {i + 1}
+                    {page}
                   </PaginationLink>
                 </PaginationItem>
               ))}

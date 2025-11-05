@@ -1,5 +1,5 @@
-import React from "react";
-import { Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { Trash2, Loader2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -12,24 +12,26 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
   Button,
-} from "@/components/ui"; // ⭐️ 상대 경로 수정
+} from "@/components/ui";
 
 interface DeleteConfirmDialogProps {
-  // 다이얼로그를 여는 버튼 등의 React 요소
+  /** 다이얼로그를 여는 트리거 (버튼 등) */
   trigger?: React.ReactNode;
-  // 삭제 버튼 클릭 시 실행할 함수
-  onConfirm: () => void;
-  // 다이얼로그의 제목
+  /** 삭제 버튼 클릭 시 실행할 함수 */
+  onConfirm: () => Promise<void> | void;
+  /** 다이얼로그의 제목 */
   title?: string;
-  // 다이얼로그의 설명
+  /** 다이얼로그의 설명 */
   description?: string;
-  // 삭제 버튼에 표시될 텍스트
+  /** 삭제 버튼 텍스트 */
   confirmText?: string;
-  // 취소 버튼에 표시될 텍스트
+  /** 취소 버튼 텍스트 */
   cancelText?: string;
 }
 
-//기본값 세팅 + props
+// ------------------------------
+// 🔹 AppDeleteDialog 컴포넌트
+// ------------------------------
 export function AppDeleteDialog({
   trigger,
   onConfirm,
@@ -38,6 +40,9 @@ export function AppDeleteDialog({
   confirmText = "삭제",
   cancelText = "닫기",
 }: DeleteConfirmDialogProps) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  // ✅ 기본 트리거 버튼
   const defaultTrigger = (
     <Button
       size="icon"
@@ -48,31 +53,59 @@ export function AppDeleteDialog({
     </Button>
   );
 
+  // ✅ 삭제 실행 핸들러 (비동기 안전처리)
+  const handleConfirm = async () => {
+    try {
+      setIsLoading(true);
+      await onConfirm();
+    } catch (err) {
+      console.error("삭제 처리 중 오류:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        {trigger ? trigger : defaultTrigger}
+        {trigger ?? defaultTrigger}
       </AlertDialogTrigger>
+
       <AlertDialogContent className="bg-zinc-950/90 border border-zinc-800 shadow-2xl backdrop-blur-sm">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white text-xl font-bold">
+          <AlertDialogTitle className="text-white text-lg font-semibold">
             {title}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-zinc-400">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
+
         <AlertDialogFooter>
-          <AlertDialogCancel className="hover:bg-zinc-800 border-zinc-700 text-zinc-300">
+          <AlertDialogCancel
+            disabled={isLoading}
+            className="hover:bg-zinc-800 border-zinc-700 text-zinc-300 transition-all"
+          >
             {cancelText}
           </AlertDialogCancel>
+
           <AlertDialogAction
-            // ⭐️ onConfirm 함수는 여기에 연결합니다.
-            onClick={onConfirm}
-            // 다크 모드에 맞춘 트렌디한 삭제 버튼 스타일
-            className="bg-red-600 text-white hover:bg-red-700 font-semibold shadow-md shadow-red-700/30 transition-all duration-200"
+            disabled={isLoading}
+            onClick={handleConfirm}
+            className={`font-semibold transition-all duration-200 shadow-md shadow-red-700/30
+              ${
+                isLoading
+                  ? "bg-red-400/50 text-white cursor-not-allowed"
+                  : "bg-red-600 hover:bg-red-700 text-white"
+              }`}
           >
-            {confirmText}
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> 삭제 중...
+              </span>
+            ) : (
+              confirmText
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

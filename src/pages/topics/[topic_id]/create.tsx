@@ -1,7 +1,19 @@
-import supabase from "@/lib/supabase";
-import { useAuthStore } from "@/stores";
+"use client";
+
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { nanoid } from "nanoid";
+import { toast } from "sonner";
+import {
+  ArrowLeft,
+  Asterisk,
+  BookOpenCheck,
+  ImageOff,
+  Save,
+} from "lucide-react";
+
+import supabase from "@/lib/supabase";
+import { useAuthStore } from "@/stores";
 import { AppEditor, AppFileUpload } from "@/components/common";
 import {
   Button,
@@ -15,76 +27,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui";
-import { toast } from "sonner";
-import {
-  ArrowLeft,
-  Asterisk,
-  BookOpenCheck,
-  ImageOff,
-  Save,
-} from "lucide-react";
-import { nanoid } from "nanoid";
 import { TOPIC_CATEGORY } from "@/constants/category.constant";
 import { TOPIC_STATUS } from "@/types/topic.type";
 import type { Block } from "@blocknote/core";
 
 export default function CreateTopic() {
+  // --------------------------------------
+  // ✅ 기본 상태 & 설정
+  // --------------------------------------
   const user = useAuthStore((state) => state.user);
-
-  const { id } = useParams();
   const navigate = useNavigate();
+  const { id } = useParams();
 
-  const [title, setTitle] = useState<string>("");
+  const [title, setTitle] = useState("");
   const [content, setContent] = useState<Block[]>([]);
-  const [category, setCategory] = useState<string>("");
+  const [category, setCategory] = useState("");
   const [thumbnail, setThumbnail] = useState<File | string | null>(null);
 
+  // --------------------------------------
+  // ✅ 초기 데이터 불러오기
+  // --------------------------------------
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "instant",
-    });
+    window.scrollTo({ top: 0, behavior: "instant" });
     fetchTopic();
   }, []);
 
   const fetchTopic = async () => {
     try {
-      const { data: topic, error } = await supabase
+      const { data, error } = await supabase
         .from("topic")
         .select("*")
         .eq("id", id);
 
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
+      if (error) throw error;
+      if (!data?.length) return;
 
-      if (topic) {
-        setTitle(topic[0].title);
-        setContent(JSON.parse(topic[0].content));
-        setCategory(topic[0].category);
-        setThumbnail(topic[0].thumbnail);
-      }
-    } catch (error) {
-      console.log(error);
-      throw error;
+      const topic = data[0];
+      setTitle(topic.title);
+      setContent(JSON.parse(topic.content));
+      setCategory(topic.category);
+      setThumbnail(topic.thumbnail);
+    } catch (err) {
+      console.error(err);
+      toast.error("토픽 정보를 불러오는 중 오류가 발생했습니다.");
     }
   };
 
-  const handleSave = async () => {
-    if (!title && !content && !category && !thumbnail) {
-      toast.warning("제목, 본문, 카테고리, 썸네일을 기입하세요.");
-      return;
-    }
+  // --------------------------------------
+  // ✅ 썸네일 업로드 함수
+  // --------------------------------------
+  const uploadThumbnail = async (): Promise<string | null> => {
+    if (!thumbnail) return null;
 
-    // 1. 파일 업로드 시, Supabase의 Storage 즉, bucket 폴더에 이미지를 먼저 업로드 한 후
-    // 이미지가 저장된 bucket 폴더의 경로 URL 주소를 우리가 관리하고 있는 Topic 테이블 thumbnail 컬럼에 문자열 형태
-    // 즉, string 타입 (DB에서는 Text 타입)으로 저장한다.
-
-    let thumbnailUrl: string | null = null;
-
-    if (thumbnail && thumbnail instanceof File) {
-      // 썸네일 이미지를 storage에 업로드
+    // 새 파일 업로드
+    if (thumbnail instanceof File) {
       const fileExt = thumbnail.name.split(".").pop();
       const fileName = `${nanoid()}.${fileExt}`;
       const filePath = `topics/${fileName}`;
@@ -92,109 +88,87 @@ export default function CreateTopic() {
       const { error: uploadError } = await supabase.storage
         .from("files")
         .upload(filePath, thumbnail);
-
       if (uploadError) throw uploadError;
 
-      // 업로드된 이미지의 Public URL 값 가져오기
       const { data } = supabase.storage.from("files").getPublicUrl(filePath);
+      if (!data) throw new Error("썸네일 URL 조회 실패");
 
-      if (!data) throw new Error("썸네일 Public URL 조회를 실패하였습니다.");
-      thumbnailUrl = data.publicUrl;
-    } else if (typeof thumbnail === "string") {
-      // 기존 이미지 유지
-      thumbnailUrl = thumbnail;
+      return data.publicUrl;
     }
 
-    const { data, error } = await supabase
-      .from("topic")
-      .update([
-        {
+    // 기존 URL 유지
+    return typeof thumbnail === "string" ? thumbnail : null;
+  };
+
+  // --------------------------------------
+  // ✅ 임시 저장 (TEMP 상태)
+  // --------------------------------------
+  const handleSave = async () => {
+    if (!title || !content.length || !category || !thumbnail) {
+      toast.warning("제목, 본문, 카테고리, 썸네일을 모두 기입하세요.");
+      return;
+    }
+
+    try {
+      const thumbnailUrl = await uploadThumbnail();
+      const { error } = await supabase
+        .from("topic")
+        .update({
           title,
           content: JSON.stringify(content),
           category,
           thumbnail: thumbnailUrl,
           author: user?.id,
           status: TOPIC_STATUS.TEMP,
-        },
-      ])
-      .eq("id", id)
-      .select();
+        })
+        .eq("id", id);
 
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    if (data) {
-      toast.success("작성 중인 토픽을 저장하였습니다.");
-      return;
+      if (error) throw error;
+      toast.success("작성 중인 토픽을 저장했습니다.");
+    } catch (err) {
+      console.error(err);
+      toast.error("저장 중 오류가 발생했습니다.");
     }
   };
 
+  // --------------------------------------
+  // ✅ 토픽 발행 (PUBLISH 상태)
+  // --------------------------------------
   const handlePublish = async () => {
-    console.log(title, content, category, thumbnail);
-    if (!(title && content && category && thumbnail)) {
+    if (!title || !content.length || !category || !thumbnail) {
       toast.warning("제목, 본문, 카테고리, 썸네일을 모두 기입하세요.");
       return;
     }
 
-    // 1. 파일 업로드 시, Supabase의 Storage 즉, bucket 폴더에 이미지를 먼저 업로드 한 후
-    // 이미지가 저장된 bucket 폴더의 경로 URL 주소를 우리가 관리하고 있는 Topic 테이블 thumbnail 컬럼에 문자열 형태
-    // 즉, string 타입 (DB에서는 Text 타입)으로 저장한다.
-    let thumbnailUrl: string | null = null;
-
-    if (thumbnail && thumbnail instanceof File) {
-      // 썸네일 이미지를 storage에 업로드
-      const fileExt = thumbnail.name.split(".").pop();
-      const fileName = `${nanoid()}.${fileExt}`;
-      const filePath = `topics/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("files")
-        .upload(filePath, thumbnail);
-
-      if (uploadError) throw uploadError;
-
-      // 업로드된 이미지의 Public URL 값 가져오기
-      const { data } = supabase.storage.from("files").getPublicUrl(filePath);
-
-      if (!data) throw new Error("썸네일 Public URL 조회를 실패하였습니다.");
-      thumbnailUrl = data.publicUrl;
-    } else if (typeof thumbnail === "string") {
-      // 기존 이미지 유지
-      thumbnailUrl = thumbnail;
-    }
-
-    const { data, error } = await supabase
-      .from("topic")
-      .update([
-        {
+    try {
+      const thumbnailUrl = await uploadThumbnail();
+      const { error } = await supabase
+        .from("topic")
+        .update({
           title,
           content: JSON.stringify(content),
           category,
           thumbnail: thumbnailUrl,
           author: user?.id,
           status: TOPIC_STATUS.PUBLISH,
-        },
-      ])
-      .eq("id", id)
-      .select();
+        })
+        .eq("id", id);
 
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-
-    if (data) {
-      toast.success("토픽을 발행하였습니다.");
+      if (error) throw error;
+      toast.success("토픽을 발행했습니다.");
       navigate("/");
-
-      return;
+    } catch (err) {
+      console.error(err);
+      toast.error("발행 중 오류가 발생했습니다.");
     }
   };
 
+  // --------------------------------------
+  // ✅ 렌더링
+  // --------------------------------------
   return (
-    <main className="w-full h-full min-h-[1024px] flex gap-6 p-6">
+    <main className="w-full min-h-[1024px] flex flex-col lg:flex-row gap-6 p-4 sm:p-6">
+      {/* Floating Buttons (저장/발행/뒤로가기) */}
       <div className="fixed right-1/2 bottom-10 translate-x-1/2 z-20 flex items-center gap-2">
         <Button variant={"outline"} size={"icon"} onClick={() => navigate(-1)}>
           <ArrowLeft />
@@ -218,12 +192,15 @@ export default function CreateTopic() {
           발행
         </Button>
       </div>
-      {/* 토픽 작성하기 */}
-      <section className="w-3/4 h-full flex flex-col gap-6">
+
+      {/* Step 01: 토픽 작성 */}
+      <section className="w-full lg:w-3/4 flex flex-col gap-6">
         <div className="flex flex-col pb-6 border-b">
           <span className="text-[#F96859] font-semibold">Step 01</span>
           <span className="text-base font-semibold">토픽 작성하기</span>
         </div>
+
+        {/* 제목 */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1">
             <Asterisk size={14} className="text-[#F96859]" />
@@ -232,27 +209,31 @@ export default function CreateTopic() {
           <Input
             placeholder="토픽 제목을 입력하세요."
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(e) => setTitle(e.target.value)}
             className="h-16 pl-6 !text-lg placeholder:text-lg placeholder:font-semibold border-0"
           />
         </div>
+
+        {/* 본문 */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1">
             <Asterisk size={14} className="text-[#F96859]" />
             <Label className="text-muted-foreground">본문</Label>
           </div>
-          {/* BlockNote Text Editor UI */}
           <AppEditor props={content} setContent={setContent} />
         </div>
       </section>
-      {/* 카테고리 및 썸네일 등록 */}
-      <section className="w-1/4 h-full flex flex-col gap-6">
+
+      {/* Step 02: 카테고리 & 썸네일 */}
+      <section className="w-full lg:w-1/4 flex flex-col gap-6">
         <div className="flex flex-col pb-6 border-b">
           <span className="text-[#F96859] font-semibold">Step 02</span>
           <span className="text-base font-semibold">
             카테고리 및 썸네일 등록
           </span>
         </div>
+
+        {/* 카테고리 */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1">
             <Asterisk size={14} className="text-[#F96859]" />
@@ -265,23 +246,22 @@ export default function CreateTopic() {
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>카테고리(주제)</SelectLabel>
-                {TOPIC_CATEGORY.map((item) => {
-                  return (
-                    <SelectItem key={item.id} value={item.category}>
-                      {item.label}
-                    </SelectItem>
-                  );
-                })}
+                {TOPIC_CATEGORY.map((item) => (
+                  <SelectItem key={item.id} value={item.category}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectGroup>
             </SelectContent>
           </Select>
         </div>
+
+        {/* 썸네일 */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1">
             <Asterisk size={14} className="text-[#F96859]" />
             <Label className="text-muted-foreground">썸네일</Label>
           </div>
-          {/* 썸네일 UI */}
           <AppFileUpload file={thumbnail} onChange={setThumbnail} />
           <Button
             variant={"outline"}
