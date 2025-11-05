@@ -1,24 +1,29 @@
+import { useEffect, useMemo } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
-// Or, you can use ariakit, shadcn, etc.
 import { BlockNoteView } from "@blocknote/mantine";
-import { ko } from "@blocknote/core/locales";
-// Default styles for the mantine editor
-import "@blocknote/mantine/style.css";
-// Include the included Inter font
-import "@blocknote/core/fonts/inter.css";
 import type { Block } from "@blocknote/core";
-import { useEffect } from "react";
+import { ko } from "@blocknote/core/locales";
 
+import "@blocknote/mantine/style.css";
+import "@blocknote/core/fonts/inter.css";
+
+// ------------------------------
+// 🔹 Props 타입 정의
+// ------------------------------
 interface Props {
   props: Block[];
   setContent?: (content: Block[]) => void;
   readonly?: boolean;
 }
 
-export function AppEditor({ props, setContent, readonly }: Props) {
-  const locale = ko;
+// ------------------------------
+// 🔹 AppEditor 컴포넌트
+// ------------------------------
+export function AppEditor({ props, setContent, readonly = false }: Props) {
+  // ✅ locale은 매 렌더링마다 다시 생성되지 않도록 useMemo로 감쌈
+  const locale = useMemo(() => ko, []);
 
-  // Create a new editor instance
+  // ✅ BlockNote 인스턴스 생성
   const editor = useCreateBlockNote({
     dictionary: {
       ...locale,
@@ -29,18 +34,20 @@ export function AppEditor({ props, setContent, readonly }: Props) {
     },
   });
 
+  // ✅ props(외부에서 받은 블록 데이터) 변경 시 동기화
   useEffect(() => {
-    if (props && props.length > 0) {
-      const current = JSON.stringify(editor.document);
-      const next = JSON.stringify(props);
+    if (!props?.length) return;
 
-      //current 값과 next 값이 같으면 교체를 안함
-      if (current !== next) {
-        editor.replaceBlocks(editor.document, props);
-      }
+    const current = JSON.stringify(editor.document);
+    const next = JSON.stringify(props);
+
+    // 불필요한 렌더 방지 — 내용이 같으면 교체 안 함
+    if (current !== next) {
+      editor.replaceBlocks(editor.document, props);
     }
   }, [props, editor]);
-  // Render the editor
+
+  // ✅ 에디터 렌더링
   return (
     <BlockNoteView
       editor={editor}
@@ -50,6 +57,7 @@ export function AppEditor({ props, setContent, readonly }: Props) {
           setContent?.(editor.document);
         }
       }}
+      className="rounded-lg border border-zinc-800 bg-zinc-950 p-2 shadow-inner"
     />
   );
 }
