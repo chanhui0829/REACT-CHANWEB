@@ -104,8 +104,8 @@ export default function CreateTopic() {
   // ✅ 임시 저장 (TEMP 상태)
   // --------------------------------------
   const handleSave = async () => {
-    if (!title || !content.length || !category || !thumbnail) {
-      toast.warning("제목, 본문, 카테고리, 썸네일을 모두 기입하세요.");
+    if (!title && !content.length && !category && !thumbnail) {
+      toast.warning("제목, 본문, 카테고리, 썸네일 중 하나 이상 기입해주세요.");
       return;
     }
 
