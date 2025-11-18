@@ -1,34 +1,58 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router";
-import { ThemeProvider } from "./components/theme-provider.tsx";
-import { Toaster } from "./components/ui/sonner.tsx";
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import './index.css';
 
-import "./index.css";
-import RootLayout from "./pages/layout.tsx"; //전역 레이아웃 컴포넌트
-import App from "./pages"; //메인페이지
-import SignUp from "./pages/sign-up"; //회원가입 페이지
-import SignIn from "./pages/sign-in"; //로그인 페이지
-import AuthCallback from "./pages/auth/callback.tsx"; //소셜 로그인 시, 콜백 페이지
-import CreateTopic from "./pages/topics/[topic_id]/create.tsx"; //토픽 생성 페이지
-import TopicDetail from "./pages/topics/[topic_id]/detail.tsx"; //토픽 상세 페이지
+// 🔥 React Query
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+// 🔥 Theme + Toast
+import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from '@/components/ui/sonner';
+
+// 🔥 Layout + Pages
+import RootLayout from '@/pages/layout';
+import App from '@/pages';
+import SignUp from '@/pages/sign-up';
+import SignIn from '@/pages/sign-in';
+import AuthCallback from '@/pages/auth/callback';
+import CreateTopic from '@/pages/topics/[topic_id]/create';
+import TopicDetail from '@/pages/topics/[topic_id]/detail';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 1000 * 60 * 3,
+    },
+  },
+});
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <BrowserRouter>
-        <Routes>
-          <Route element={<RootLayout />}>
-            <Route index element={<App />} />
-            <Route path="sign-up" element={<SignUp />} />
-            <Route path="sign-in" element={<SignIn />} />
-            <Route path="auth/callback" element={<AuthCallback />} />
-            <Route path="topics/:id/create" element={<CreateTopic />} />
-            <Route path="topics/:id/detail" element={<TopicDetail />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-      <Toaster richColors position="top-center" />
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<RootLayout />}>
+              <Route index element={<App />} />
+              <Route path="sign-up" element={<SignUp />} />
+              <Route path="sign-in" element={<SignIn />} />
+              <Route path="auth/callback" element={<AuthCallback />} />
+              <Route path="topics">
+                <Route path="create" element={<CreateTopic />} />
+                <Route path="create/:id" element={<CreateTopic />} />
+                <Route path=":id/detail" element={<TopicDetail />} />
+              </Route>
+            </Route>
+          </Routes>
+        </BrowserRouter>
+
+        <Toaster richColors position="top-center" />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
     </ThemeProvider>
-  </StrictMode>
+  </React.StrictMode>
 );

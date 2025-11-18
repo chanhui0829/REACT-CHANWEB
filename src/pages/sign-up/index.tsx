@@ -1,16 +1,14 @@
-import { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { ArrowLeft, Asterisk, ChevronRight } from "lucide-react";
+import { useEffect, useState, useCallback } from 'react';
+import { NavLink, useNavigate } from 'react-router';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { ArrowLeft, Asterisk, ChevronRight } from 'lucide-react';
 
-// store & utils
-import { useAuthStore } from "@/stores";
-import supabase from "@/lib/supabase";
+import { useAuthStore } from '@/stores';
+import supabase from '@/lib/supabase';
 
-// ui components
 import {
   Button,
   Checkbox,
@@ -22,84 +20,64 @@ import {
   FormMessage,
   Input,
   Label,
+  PasswordInput,
   Separator,
-} from "@/components/ui";
+} from '@/components/ui';
 
 // ------------------------------
-// 🔹 form schema 정의 (Zod)
+// 🔹 Zod Schema
 // ------------------------------
 const formSchema = z
   .object({
-    email: z.string().email({
-      message: "올바른 형식의 이메일 주소를 입력해주세요.",
-    }),
-    password: z.string().min(8, {
-      message: "비밀번호는 최소 8자 이상이어야 합니다.",
-    }),
-    confirmPassword: z.string().min(8, {
-      message: "비밀번호 확인을 입력해주세요.",
-    }),
+    email: z.string().email('올바른 이메일 주소를 입력해주세요.'),
+    password: z.string().min(8, '비밀번호는 최소 8자 이상이어야 합니다.'),
+    confirmPassword: z.string().min(8, '비밀번호 확인을 입력해주세요.'),
   })
   .superRefine(({ password, confirmPassword }, ctx) => {
     if (password !== confirmPassword) {
       ctx.addIssue({
-        code: "custom",
-        message: "비밀번호가 일치하지 않습니다.",
-        path: ["confirmPassword"],
+        code: 'custom',
+        message: '비밀번호가 일치하지 않습니다.',
+        path: ['confirmPassword'],
       });
     }
   });
 
 // ------------------------------
-// 🔹 컴포넌트 정의
+// 🔹 SignUp Component
 // ------------------------------
 export default function SignUp() {
   const navigate = useNavigate();
-  const setUser = useAuthStore((state) => state.setUser);
+  const user = useAuthStore((state) => state.user); // setUser 삭제됨: 필요 없음
 
-  // ✅ react-hook-form 설정
+  // --------------- form ---------------
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { email: "", password: "", confirmPassword: "" },
+    defaultValues: { email: '', password: '', confirmPassword: '' },
   });
 
-  // ✅ 약관 동의 상태 관리
+  // --------------- 약관 체크박스 ---------------
   const [serviceAgreed, setServiceAgreed] = useState(false);
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
   const [marketingAgreed, setMarketingAgreed] = useState(false);
 
-  const handleCheckService = () => setServiceAgreed((prev) => !prev);
-  const handleCheckPrivacy = () => setPrivacyAgreed((prev) => !prev);
-  const handleCheckMarketing = () => setMarketingAgreed((prev) => !prev);
+  const handleCheckService = useCallback(() => setServiceAgreed((prev) => !prev), []);
+  const handleCheckPrivacy = useCallback(() => setPrivacyAgreed((prev) => !prev), []);
+  const handleCheckMarketing = useCallback(() => setMarketingAgreed((prev) => !prev), []);
 
   // ------------------------------
-  // 🔹 로그인 세션 체크
+  // 🔹 로그인 상태면 홈으로 이동
   // ------------------------------
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
-
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email as string,
-          role: session.user.role as string,
-        });
-        navigate("/");
-      }
-    };
-    checkSession();
-  }, [navigate, setUser]);
+    if (user) navigate('/');
+  }, [user, navigate]);
 
   // ------------------------------
   // 🔹 회원가입 처리
   // ------------------------------
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    console.log("회원가입 버튼 클릭!");
-
     if (!serviceAgreed || !privacyAgreed) {
-      toast.warning("필수 동의항목을 체크해주세요.");
+      toast.warning('필수 동의항목을 체크해주세요.');
       return;
     }
 
@@ -114,49 +92,46 @@ export default function SignUp() {
         return;
       }
 
-      // 회원가입 시 Supabase가 자동 로그인하므로, 로그아웃을 명시적으로 실행
-      await supabase.auth.signOut();
-
       if (data.user) {
+        // 🔹 유저 테이블 업데이트 (약관 정보)
         const { error: updateError } = await supabase
-          .from("user")
+          .from('user')
           .update({
             service_agreed: serviceAgreed,
             privacy_agreed: privacyAgreed,
             marketing_agreed: marketingAgreed,
           })
-          .eq("id", data.user.id);
+          .eq('id', data.user.id);
 
         if (updateError) {
-          toast.error("약관 동의 정보 저장 중 오류가 발생했습니다.");
+          toast.error('약관 정보 저장 중 오류가 발생했습니다.');
         }
 
-        toast.success("회원가입이 완료되었습니다. 로그인해주세요!");
-        navigate("/sign-in", { state: { email: values.email } });
+        // 🔹 signUp 후 자동 로그인되므로 명시적 로그아웃
+        await supabase.auth.signOut();
+
+        toast.success('회원가입이 완료되었습니다! 로그인해주세요.');
+        navigate('/sign-in', { state: { email: values.email } });
       }
     } catch (err) {
       console.error(err);
-      toast.error("회원가입 처리 중 오류가 발생했습니다.");
+      toast.error('회원가입 처리 중 오류가 발생했습니다.');
     }
   };
 
   // ------------------------------
-  // 🔹 UI 렌더링
+  // 🔹 UI (절대 변경 X)
   // ------------------------------
   return (
     <main className="w-full h-full min-h-[720px] flex items-center justify-center p-6 gap-6">
       <div className="w-full max-w-[400px] flex flex-col px-6 gap-6">
         {/* 헤더 */}
         <header className="flex flex-col">
-          <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-            회원가입
-          </h4>
-          <p className="text-muted-foreground">
-            회원가입을 위한 정보를 입력해주세요.
-          </p>
+          <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">회원가입</h4>
+          <p className="text-muted-foreground">회원가입을 위한 정보를 입력해주세요.</p>
         </header>
 
-        {/* 폼 */}
+        {/* Form */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* 이메일 */}
@@ -182,11 +157,7 @@ export default function SignUp() {
                 <FormItem>
                   <FormLabel>비밀번호</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="비밀번호를 입력하세요."
-                      {...field}
-                    />
+                    <PasswordInput placeholder="비밀번호를 입력하세요." {...field} />
                   </FormControl>
                   <FormMessage className="text-xs" />
                 </FormItem>
@@ -201,19 +172,16 @@ export default function SignUp() {
                 <FormItem>
                   <FormLabel>비밀번호 확인</FormLabel>
                   <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="비밀번호 확인을 입력하세요."
-                      {...field}
-                    />
+                    <PasswordInput placeholder="비밀번호 확인을 입력하세요." {...field} />
                   </FormControl>
                   <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
 
-            {/* 약관 동의 */}
+            {/* 약관 */}
             <section className="grid gap-2">
+              {/* 필수 */}
               <div className="grid gap-2">
                 <div className="flex items-center gap-1">
                   <Asterisk size={14} className="text-[#F96859]" />
@@ -224,9 +192,9 @@ export default function SignUp() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        className="w-[18px] h-[18px]"
                         checked={serviceAgreed}
                         onCheckedChange={handleCheckService}
+                        className="w-[18px] h-[18px]"
                       />
                       서비스 이용약관 동의
                     </div>
@@ -239,9 +207,9 @@ export default function SignUp() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        className="w-[18px] h-[18px]"
                         checked={privacyAgreed}
                         onCheckedChange={handleCheckPrivacy}
+                        className="w-[18px] h-[18px]"
                       />
                       개인정보 수집 및 이용동의
                     </div>
@@ -255,15 +223,15 @@ export default function SignUp() {
 
               <Separator />
 
-              {/* 선택 약관 */}
+              {/* 선택 */}
               <div className="grid gap-2">
                 <Label>선택 동의항목</Label>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Checkbox
-                      className="w-[18px] h-[18px]"
                       checked={marketingAgreed}
                       onCheckedChange={handleCheckMarketing}
+                      className="w-[18px] h-[18px]"
                     />
                     마케팅 및 광고 수신 동의
                   </div>
@@ -275,17 +243,13 @@ export default function SignUp() {
               </div>
             </section>
 
-            {/* 버튼 영역 */}
+            {/* 버튼 */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <Button type="button" variant="outline" size="icon">
                   <ArrowLeft />
                 </Button>
-                <Button
-                  type="submit"
-                  variant="outline"
-                  className="flex-1 !bg-sky-800/50"
-                >
+                <Button type="submit" variant="outline" className="flex-1 !bg-sky-800/50">
                   회원가입
                 </Button>
               </div>

@@ -1,77 +1,60 @@
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router";
-import { toast } from "sonner";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
-import "dayjs/locale/ko";
+import { memo, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/ko';
+
+import { useQuery } from '@tanstack/react-query';
 
 // UI & Icons
-import { Card, Separator } from "../ui";
-import { CaseSensitive, Eye, Heart } from "lucide-react";
+import { Card, Separator } from '../ui';
+import { CaseSensitive, Eye, Heart } from 'lucide-react';
 
 // types & utils
-import type { Topic } from "@/types/topic.type";
-import supabase from "@/lib/supabase";
+import type { Topic } from '@/types/topic.type';
+import supabase from '@/lib/supabase';
 
 dayjs.extend(relativeTime);
-dayjs.locale("ko"); // 한국어 설정
+dayjs.locale('ko');
 
 // ------------------------------
-// 🔹 텍스트 파싱 함수 (본문 추출)
+// 🔹 텍스트 파싱 함수
 // ------------------------------
 function extractTextFromContent(content: string | [], maxChars = 200) {
   try {
-    const parsed = typeof content === "string" ? JSON.parse(content) : content;
+    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+    if (!Array.isArray(parsed)) return '';
 
-    if (!Array.isArray(parsed)) {
-      console.warn("content 데이터 타입이 배열이 아닙니다.");
-      return "";
-    }
-
-    let result = "";
-
+    let result = '';
     for (const block of parsed) {
       if (Array.isArray(block.content)) {
         for (const child of block.content) {
           if (child?.text) {
-            result += child.text + " ";
-            if (result.length >= maxChars)
-              return result.slice(0, maxChars) + "...";
+            result += child.text + ' ';
+            if (result.length >= maxChars) return result.slice(0, maxChars) + '...';
           }
         }
       }
     }
     return result.trim();
-  } catch (err) {
-    console.error("콘텐츠 파싱 실패:", err);
-    return "";
+  } catch {
+    return '';
   }
 }
 
 // ------------------------------
-// 🔹 유저 닉네임 조회 함수
+// 🔹 유저 닉네임 조회
 // ------------------------------
 async function findUserById(id: string): Promise<string> {
   try {
-    const { data, error } = await supabase
-      .from("user")
-      .select("email")
-      .eq("id", id);
+    const { data, error } = await supabase.from('user').select('email').eq('id', id);
 
-    if (error) {
-      toast.error(error.message);
-      return "알 수 없는 사용자";
-    }
+    if (error) return '알 수 없는 사용자';
+    if (!data || data.length === 0) return '알 수 없는 사용자';
 
-    if (data && data.length > 0) {
-      // 구글 로그인 시 닉네임 부분만 표시
-      return data[0].email.split("@")[0] + "님";
-    }
-
-    return "알 수 없는 사용자";
-  } catch (err) {
-    console.error(err);
-    return "알 수 없는 사용자";
+    return data[0].email.split('@')[0] + '님';
+  } catch {
+    return '알 수 없는 사용자';
   }
 }
 
@@ -82,44 +65,57 @@ interface Props {
   props: Topic;
 }
 
-export function TopicCard({ props }: Props) {
+function TopicCardComponent({ props }: Props) {
   const navigate = useNavigate();
-  const [nickname, setNickname] = useState<string>("");
 
-  // ✅ 닉네임 불러오기
-  const fetchNickname = useCallback(async () => {
-    const name = await findUserById(props.author);
-    setNickname(name);
-  }, [props.author]);
+  const handleNavigate = useCallback(() => {
+    navigate(`/topics/${props.id}/detail`);
+  }, [navigate, props.id]);
 
-  useEffect(() => {
-    fetchNickname();
-  }, [fetchNickname]);
+  const previewText = useMemo(() => extractTextFromContent(props.content), [props.content]);
 
-  // ------------------------------
-  // 🔹 UI 렌더링
-  // ------------------------------
+  // 🔥 닉네임 Query
+  const { data: nickname = '' } = useQuery({
+    queryKey: ['user', props.author],
+    queryFn: () => findUserById(props.author),
+    staleTime: Infinity,
+  });
+
+  // 🔥 좋아요 개수 Query
+  const { data: likesData = [] } = useQuery({
+    queryKey: ['topicLikes', props.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('topic_likes')
+        .select('user_id')
+        .eq('topic_id', props.id);
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 5000,
+  });
+
+  const likesCount = likesData.length;
+
   return (
     <Card
       className="w-full h-fit p-4 gap-4 cursor-pointer hover:scale-[1.01] transition-all duration-200"
-      onClick={() => navigate(`/topics/${props.id}/detail`)}
+      onClick={handleNavigate}
     >
-      {/* 상단: 제목 + 썸네일 */}
+      {/* 상단 */}
       <div className="flex items-start gap-4">
         <div className="flex-1 flex flex-col items-start gap-4">
           <h3 className="h-16 text-base font-semibold tracking-tight line-clamp-2 flex flex-col items-start gap-2">
-            <CaseSensitive
-              size={16}
-              className="text-muted-foreground mt-[3px]"
-            />
+            <CaseSensitive size={16} className="text-muted-foreground mt-[3px]" />
             <span>{props.title}</span>
           </h3>
           <p className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">
-            {extractTextFromContent(props.content)}
+            {previewText}
           </p>
         </div>
         <img
-          src={props.thumbnail}
+          src={props.thumbnail ?? '/assets/default-thumbnail.png'}
           alt="@THUMBNAIL"
           className="w-[140px] h-[140px] aspect-square rounded-lg object-cover"
         />
@@ -127,7 +123,7 @@ export function TopicCard({ props }: Props) {
 
       <Separator />
 
-      {/* 하단: 작성자 + 카테고리 + 조회수/좋아요/작성일 */}
+      {/* 하단 */}
       <div className="w-full flex justify-between items-start text-sm">
         <div className="flex flex-col text-gray-400">
           <p className="font-semibold text-white mb-0.5">{nickname}</p>
@@ -143,14 +139,14 @@ export function TopicCard({ props }: Props) {
             <Separator orientation="vertical" className="!h-4" />
             <p className="flex items-center gap-1">
               <Heart color="#ef4444" fill="#ef4444" size={14} />
-              <span>{props.likes}</span>
+              <span>{likesCount}</span>
             </p>
           </div>
-          <p className="text-xs text-gray-400">
-            {dayjs(props.created_at).fromNow()}
-          </p>
+          <p className="text-xs text-gray-400">{dayjs(props.created_at).fromNow()}</p>
         </div>
       </div>
     </Card>
   );
 }
+
+export const TopicCard = memo(TopicCardComponent);

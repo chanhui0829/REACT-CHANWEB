@@ -1,29 +1,27 @@
-import { useEffect, useMemo } from "react";
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
-import type { Block } from "@blocknote/core";
-import { ko } from "@blocknote/core/locales";
+import { useEffect, useMemo } from 'react';
+import { useCreateBlockNote } from '@blocknote/react';
+import { BlockNoteView } from '@blocknote/mantine';
+import type { Block } from '@blocknote/core';
+import { ko } from '@blocknote/core/locales';
 
-import "@blocknote/mantine/style.css";
-import "@blocknote/core/fonts/inter.css";
+import '@blocknote/mantine/style.css';
+import '@blocknote/core/fonts/inter.css';
 
 // ------------------------------
 // 🔹 Props 타입 정의
 // ------------------------------
 interface Props {
-  props: Block[];
-  setContent?: (content: Block[]) => void;
+  value: Block[]; // 기존 props → value 로 변경
+  onChange?: (content: Block[]) => void; // 기존 setContent → onChange 로 변경
   readonly?: boolean;
 }
 
 // ------------------------------
 // 🔹 AppEditor 컴포넌트
 // ------------------------------
-export function AppEditor({ props, setContent, readonly = false }: Props) {
-  // ✅ locale은 매 렌더링마다 다시 생성되지 않도록 useMemo로 감쌈
+export function AppEditor({ value, onChange, readonly = false }: Props) {
   const locale = useMemo(() => ko, []);
 
-  // ✅ BlockNote 인스턴스 생성
   const editor = useCreateBlockNote({
     dictionary: {
       ...locale,
@@ -34,30 +32,35 @@ export function AppEditor({ props, setContent, readonly = false }: Props) {
     },
   });
 
-  // ✅ props(외부에서 받은 블록 데이터) 변경 시 동기화
+  // 🔥 외부 value 변경되면 에디터와 동기화
   useEffect(() => {
-    if (!props?.length) return;
+    if (!value || value.length === 0) return;
 
     const current = JSON.stringify(editor.document);
-    const next = JSON.stringify(props);
+    const next = JSON.stringify(value);
 
-    // 불필요한 렌더 방지 — 내용이 같으면 교체 안 함
     if (current !== next) {
-      editor.replaceBlocks(editor.document, props);
+      editor.replaceBlocks(editor.document, value);
     }
-  }, [props, editor]);
+  }, [value, editor]);
 
-  // ✅ 에디터 렌더링
   return (
     <BlockNoteView
       editor={editor}
       editable={!readonly}
       onChange={() => {
         if (!readonly) {
-          setContent?.(editor.document);
+          onChange?.(editor.document);
         }
       }}
-      className="rounded-lg border border-zinc-800 bg-zinc-950 p-2 shadow-inner"
+      className={`
+      rounded-lg  p-2 shadow-inner
+      ${
+        readonly
+          ? 'border-0 bg-transparent !border-none'
+          : 'bg-zinc-900 border border-zinc-800 focus-within:border-zinc-600'
+      }
+    `}
     />
   );
 }

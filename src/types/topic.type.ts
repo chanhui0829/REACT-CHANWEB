@@ -1,6 +1,6 @@
 export enum TOPIC_STATUS {
-  TEMP = "temp",
-  PUBLISH = "publish",
+  TEMP = 'temp',
+  PUBLISH = 'publish',
 }
 
 export interface Topic {
@@ -10,7 +10,7 @@ export interface Topic {
   title: string;
   content: string;
   category: string;
-  thumbnail: string;
+  thumbnail: string | null;
   status: TOPIC_STATUS;
   views: number;
   likes: number;
