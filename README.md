@@ -214,7 +214,7 @@ src/\
 │ └── supabase.ts\
 ├── pages/ or router/\
 ├── styles/\
-└── types/ 
+└── types/
 
 
 
@@ -227,8 +227,9 @@ npm install
 npm run dev
 ```
 
+
 ```
-**환경 변수 (.env)**
+환경 변수 (.env)
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 ```
