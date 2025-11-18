@@ -1,7 +1,7 @@
-import { CLASS_CATEGORY } from "@/constants/category.constant";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "../ui";
-import { useState } from "react";
+import { CLASS_CATEGORY } from '@/constants/category.constant';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '../ui';
+import { useState } from 'react';
 
 interface Props {
   category: string;
@@ -28,8 +28,8 @@ function AppSidebar({ category, setCategory }: Props) {
                 className={`flex-shrink-0 rounded-full px-4 py-2 whitespace-nowrap transition-all duration-300
                   ${
                     isActive
-                      ? "bg-accent/70 text-white font-semibold ring-1 ring-accent/60"
-                      : "text-muted-foreground hover:text-white bg-zinc-800/60"
+                      ? 'bg-accent/70 text-white font-semibold ring-1 ring-accent/60'
+                      : 'text-muted-foreground hover:text-white bg-zinc-800/60'
                   }`}
               >
                 {menu.label}
@@ -46,9 +46,7 @@ function AppSidebar({ category, setCategory }: Props) {
           className="flex items-center justify-between cursor-pointer select-none"
           onClick={toggleCategoryList}
         >
-          <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">
-            카테고리
-          </h4>
+          <h4 className="scroll-m-20 text-xl font-semibold tracking-tight">카테고리</h4>
           {isOpen ? (
             <ChevronUp className="w-5 h-5 mt-1 text-zinc-500" />
           ) : (
@@ -71,8 +69,8 @@ function AppSidebar({ category, setCategory }: Props) {
                     hover:text-white hover:pl-6
                     ${
                       isActive
-                        ? "bg-accent/70 text-white font-semibold !pl-6 ring-1 ring-accent/60"
-                        : "text-muted-foreground"
+                        ? 'bg-accent/70 text-white font-semibold !pl-6 ring-1 ring-accent/60'
+                        : 'text-muted-foreground'
                     }`}
                 >
                   {menu.icon}

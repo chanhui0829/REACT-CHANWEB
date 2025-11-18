@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -114,22 +114,21 @@
   * {
     @apply border-border outline-ring/50;
 
-    margin:0;
+    margin: 0;
     padding: 0;
     box-sizing: border-box;
 
     scrollbar-width: none;
-    ::-webkit-scrollbar{
+    ::-webkit-scrollbar {
       display: none;
     }
   }
   body {
     @apply bg-background text-foreground text-sm;
-
   }
 }
 
-.page{
+.page {
   width: 100vw;
   height: 100vh;
 
@@ -139,7 +138,7 @@
 
   margin: auto;
 
-  .container{
+  .container {
     width: 100%;
     max-width: 1328px;
 
@@ -148,7 +147,6 @@
     flex: 1;
   }
 }
-
 
 .bn-editor {
   color: white !important; /* 기본 텍스트 색상 */

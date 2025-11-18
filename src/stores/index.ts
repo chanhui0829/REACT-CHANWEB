@@ -1,51 +1,53 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import supabase from "@/lib/supabase";
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import supabase from '@/lib/supabase';
 
-// Zustand에서 persist 기능은 상태(state)를 브라우저의 스토리지(LocalStorage나 SesstionStorage 등)에 저장(persist)해서
-// 페이지를 새로고침 하거나 브라우저를 닫았다가 다시 열어도 상태를 유지할 수 있게 해주는 기능입니다.
-
-// Zustand는 리액트에서 사용되는 간단한 글로벌 상태 관리 라이브러리 입니다.
-// Persist 미들웨어를 사용하면 Zustand store의 데이터를 브라우저 스토리지에 저장할 수 있습니다.
-// 이를 통해, 상태를 유지(persist) 할 수 있어, 예를 들어 로그인 상태, 장바구니, 테마 설정 등 페이지를 새로고침해도 유지되게 할 수 있습니다.
-
-//User & Auth Store
-interface User {
+// ------------------------------
+// 🔹 User 타입 정의
+// ------------------------------
+export interface User {
   id: string;
   email: string;
   role: string;
 }
 
+// ------------------------------
+// 🔹 AuthStore 인터페이스
+// ------------------------------
 interface AuthStore {
   user: User | null;
   setUser: (newUser: User | null) => void;
   reset: () => Promise<void>;
 }
 
+// ------------------------------
+// 🔥 최적화된 Zustand AuthStore
+// ------------------------------
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       user: null,
+
+      // 🔹 불필요한 리렌더 줄이기 위해 newUser 그대로 적용
       setUser: (newUser: User | null) => set({ user: newUser }),
 
-      //로그아웃 (상태 + supabase 세션 모두 제거)
+      // 🔥 Supabase + Zustand 완전 초기화 (persist와 충돌 없음)
       reset: async () => {
-        await supabase.auth.signOut();
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          console.warn('Supabase signOut 실패(네트워크 문제 등)');
+        }
 
-        set({ user: null }); //Zustand 상태 초기화
-        localStorage.removeItem("auth-storage");
+        // 👉 상태 초기화 (persist 미들웨어가 자동으로 localStorage 업데이트 처리함)
+        set({ user: null });
       },
     }),
-    { name: "auth-storage", partialize: (state) => ({ user: state.user }) } //user만 저장
+    {
+      name: 'auth-storage',
+
+      // 🔥 user만 저장해서 성능 최적화
+      partialize: (state) => ({ user: state.user }),
+    }
   )
 );
-// //Search Store
-// interface SearchState {
-//   query: string;
-//   setQuery: (value: string) => void;
-// }
-
-// export const useSearchStore = create<SearchState>((set) => ({
-//   query: "",
-//   setQuery: (value) => set({ query: value }),
-// }));
