@@ -95,69 +95,58 @@ BlockNote 기반의 본문 작성, 카테고리 필터, 검색, 페이지네이�
 
 
 ### 🧑‍💻 user
-id (uuid)
-email (text)
-created_at (timestamp)
-service_agreed (boolean)
-privacy_agreed (boolean)
-marketing_agreed (boolean)
+id (uuid)\
+email (text)\
+created_at (timestamp)\
+service_agreed (boolean)\
+privacy_agreed (boolean)\
+marketing_agreed (boolean)\
 
-shell
-코드 복사
 
 
 ### 📝 topic
-id (bigint)
-author (uuid)
-title (text)
-content (json or text)
-category (text)
-thumbnail (text)
-status (PUBLIC | TEMP)
-views (bigint)
-created_at (timestamp)
+id (bigint)\
+author (uuid)\
+title (text)\
+content (json or text)\
+category (text)\
+thumbnail (text)\
+status (PUBLIC | TEMP)\
+views (bigint)\
+created_at (timestamp)\
 
-shell
-코드 복사
 
 
 ### 💬 comment
-id (bigint)
-user_id (uuid)
-topic_id (bigint)
-content (text)
-created_at (timestamp)
+id (bigint)\
+user_id (uuid)\
+topic_id (bigint)\
+content (text)\
+created_at (timestamp)\
 
-shell
-코드 복사
 
 
 ### 👍 topic_likes
-id (bigint)
-user_id (uuid)
-topic_id (bigint)
-created_at (timestamp)
-UNIQUE(user_id, topic_id)
+id (bigint)\
+user_id (uuid)\
+topic_id (bigint)\
+created_at (timestamp)\
+UNIQUE(user_id, topic_id)\
 
-shell
-코드 복사
 
 
 ### 👁 comment_user_view
-id (bigint)
-content (text)
-created_at (timestamp)
-topic_id (bigint)
-user_id (uuid)
-user_email (text)
+id (bigint)\
+content (text)\
+created_at (timestamp)\
+topic_id (bigint)\
+user_id (uuid)\
+user_email (text)\
 
-markdown
-코드 복사
 
 
 
 ## 🔒 5. RLS 정책 요약
-
 
 ### 🧑‍💻 user
 
@@ -204,22 +193,20 @@ markdown
 
 ## 📁 7. 폴더 구조
 
-src/
-├── components/
-│ ├── common/
-│ ├── topics/
-│ └── ui/
-├── hooks/
-│ └── apis/
-├── stores/
-├── lib/
-│ └── supabase.ts
-├── pages/ or router/
-├── styles/
-└── types/
+src/\
+├── components/\
+│ ├── common/\
+│ ├── topics/\
+│ └── ui/\
+├── hooks/\
+│ └── apis/\
+├── stores/\
+├── lib/\
+│ └── supabase.ts\
+├── pages/ or router/\
+├── styles/\
+└── types/\
 
-perl
-코드 복사
 
 
 
@@ -228,19 +215,19 @@ perl
 ```bash
 npm install
 npm run dev
+```
+
+```
 환경 변수 (.env)
-makefile
-코드 복사
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
-👤 9. 개발자 정보
+```
+
+## 👤 9. 개발자 정보
 Developer: 윤찬희
 
 GitHub: https://github.com/chanhui0829
 
 Repository: https://github.com/chanhui0829/REACT-CHANWEB
-
-yaml
-코드 복사
 
 ---
