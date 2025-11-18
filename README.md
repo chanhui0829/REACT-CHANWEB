@@ -100,7 +100,9 @@ email (text)\
 created_at (timestamp)\
 service_agreed (boolean)\
 privacy_agreed (boolean)\
-marketing_agreed (boolean)\
+marketing_agreed (boolean)
+
+
 
 
 
@@ -113,7 +115,9 @@ category (text)\
 thumbnail (text)\
 status (PUBLIC | TEMP)\
 views (bigint)\
-created_at (timestamp)\
+created_at (timestamp)
+
+
 
 
 
@@ -122,7 +126,9 @@ id (bigint)\
 user_id (uuid)\
 topic_id (bigint)\
 content (text)\
-created_at (timestamp)\
+created_at (timestamp)
+
+
 
 
 
@@ -131,7 +137,9 @@ id (bigint)\
 user_id (uuid)\
 topic_id (bigint)\
 created_at (timestamp)\
-UNIQUE(user_id, topic_id)\
+UNIQUE(user_id, topic_id)
+
+
 
 
 
@@ -141,7 +149,8 @@ content (text)\
 created_at (timestamp)\
 topic_id (bigint)\
 user_id (uuid)\
-user_email (text)\
+user_email (text)
+
 
 
 
@@ -205,7 +214,8 @@ src/\
 │ └── supabase.ts\
 ├── pages/ or router/\
 ├── styles/\
-└── types/\
+└── types/ 
+
 
 
 
@@ -218,7 +228,7 @@ npm run dev
 ```
 
 ```
-환경 변수 (.env)
+**환경 변수 (.env)**
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 ```
