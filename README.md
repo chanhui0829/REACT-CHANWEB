@@ -26,7 +26,7 @@ BlockNote 기반의 본문 작성, 카테고리 필터, 검색, 페이지네이�
 
 ### 📝 토픽 CRUD
 
-- 토픽 작성 / 수정 / 삭제  
+- 토픽 작성 / 임시저장(TEMP) / 발행(PUBLISH) / 삭제
 - BlockNote 기반 본문 작성  
 - 카테고리 선택  
 - 상태 관리 (PUBLIC / TEMP)  
